@@ -44,8 +44,10 @@ new surface.
   minted fresh ids and stacked duplicates (verified with 16 items in
   storage). Sample load now replaces, and asks first when real items
   exist.
-- **CI never ran on push** — the workflow's push trigger had a
-  malformed branch filter (`branches: ain]`); now `branches: [main]`.
+- **CI workflow typo** — the push trigger's branch filter read
+  `branches: ain]` (a mangled `[main]`). GitHub happened to fail open and
+  run CI anyway, but the filter matched no real branch name; now the
+  intended `branches: [main]`, plus a type-check step added to the gate.
 - **Scaffold identity in `package.json`** — renamed to `pocketveto`
   v1.1.0 with description; removed 21 unused dependencies (prisma,
   next-auth, next-intl, z-ai-web-dev-sdk, framer-motion, dnd-kit, …)
