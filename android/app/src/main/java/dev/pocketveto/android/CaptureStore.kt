@@ -28,7 +28,13 @@ class CaptureStore(context: Context) {
 
     private fun read(): JSONArray {
         val raw = prefs.getString(KEY, null) ?: return JSONArray()
-        return if (raw.isBlank()) JSONArray() else JSONArray(raw)
+        if (raw.isBlank()) return JSONArray()
+        // fail soft: a corrupt queue reads as empty, never crashes the service
+        return try {
+            JSONArray(raw)
+        } catch (e: org.json.JSONException) {
+            JSONArray()
+        }
     }
 
     private fun write(arr: JSONArray) {

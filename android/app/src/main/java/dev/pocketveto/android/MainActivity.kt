@@ -62,7 +62,7 @@ class MainActivity : Activity() {
                 view: WebView?,
                 request: WebResourceRequest?,
             ): WebResourceResponse? {
-                request?.url?.let { return assetLoader.intercept(it) }
+                request?.url?.let { return assetLoader.shouldInterceptRequest(it) }
                 return null
             }
         }
