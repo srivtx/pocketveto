@@ -11,7 +11,7 @@ on PocketVeto. Goals are ordered: **Goal 0 gates everything.**
       sample data → radar blips → playbook + APR calculator → veto →
       saved ledger → add item → clear data (agent-browser session,
       2026-10-05)
-- [x] No secrets in repo (`ghp_` scan clean), MIT LICENSE present,
+- [x] No secrets in repo (token-prefix scan clean), MIT LICENSE present,
       CI green from first commit
 
 **Re-verify triggers:** any change to `src/lib/pocketveto/*` (re-run all
