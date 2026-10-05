@@ -3,11 +3,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * PocketVeto design system — "quiet mission control".
+ *
+ * One signal color on deep ink. Hairline rules. Monospaced data.
+ * Motion that echoes the radar: things approach, settle, hold —
+ * nothing bounces, nothing loops forever except the sweep.
+ */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-grotesk);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -43,8 +52,36 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* PocketVeto palette — ink (surfaces), mist (text), signal (accent),
+   cliff (danger), warn (amber). Tuned in oklch for the dark, calm room. */
+@theme {
+  --color-ink-950: oklch(0.132 0.014 175);
+  --color-ink-925: oklch(0.158 0.015 175);
+  --color-ink-900: oklch(0.185 0.015 175);
+  --color-ink-850: oklch(0.215 0.014 175);
+  --color-ink-800: oklch(0.248 0.013 175);
+  --color-ink-700: oklch(0.3 0.012 175);
+
+  --color-mist-100: oklch(0.945 0.006 170);
+  --color-mist-300: oklch(0.78 0.008 172);
+  --color-mist-400: oklch(0.66 0.01 173);
+  --color-mist-500: oklch(0.545 0.012 173);
+
+  --color-signal-300: oklch(0.875 0.145 163);
+  --color-signal-400: oklch(0.8 0.168 163);
+  --color-signal-500: oklch(0.725 0.17 162);
+  --color-signal-600: oklch(0.635 0.155 162);
+
+  --color-cliff-300: oklch(0.78 0.135 25);
+  --color-cliff-400: oklch(0.7 0.19 22);
+  --color-cliff-500: oklch(0.625 0.2 21);
+
+  --color-warn-300: oklch(0.82 0.14 75);
+  --color-warn-400: oklch(0.78 0.155 70);
+}
+
 :root {
-  --radius: 0.625rem;
+  --radius: 0.5rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -78,38 +115,40 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* PocketVeto is dark-only by design (a radar is a dark-room instrument).
+   All shadcn primitives inherit the palette below. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.132 0.014 175);
+  --foreground: oklch(0.945 0.006 170);
+  --card: oklch(0.185 0.015 175);
+  --card-foreground: oklch(0.945 0.006 170);
+  --popover: oklch(0.158 0.015 175);
+  --popover-foreground: oklch(0.945 0.006 170);
+  --primary: oklch(0.8 0.168 163);
+  --primary-foreground: oklch(0.132 0.014 175);
+  --secondary: oklch(0.215 0.014 175);
+  --secondary-foreground: oklch(0.945 0.006 170);
+  --muted: oklch(0.215 0.014 175);
+  --muted-foreground: oklch(0.66 0.01 173);
+  --accent: oklch(0.215 0.014 175);
+  --accent-foreground: oklch(0.945 0.006 170);
+  --destructive: oklch(0.7 0.19 22);
+  --border: oklch(0.248 0.013 175);
+  --input: oklch(0.248 0.013 175);
+  --ring: oklch(0.8 0.168 163);
+  --chart-1: oklch(0.8 0.168 163);
+  --chart-2: oklch(0.78 0.155 70);
+  --chart-3: oklch(0.7 0.19 22);
+  --chart-4: oklch(0.66 0.01 173);
+  --chart-5: oklch(0.545 0.012 173);
+  --sidebar: oklch(0.158 0.015 175);
+  --sidebar-foreground: oklch(0.945 0.006 170);
+  --sidebar-primary: oklch(0.8 0.168 163);
+  --sidebar-primary-foreground: oklch(0.132 0.014 175);
+  --sidebar-accent: oklch(0.215 0.014 175);
+  --sidebar-accent-foreground: oklch(0.945 0.006 170);
+  --sidebar-border: oklch(0.248 0.013 175);
+  --sidebar-ring: oklch(0.8 0.168 163);
 }
 
 @layer base {
@@ -121,7 +160,65 @@
   }
 }
 
-/* PocketVeto — radar sweep rotation (respects reduced motion) */
+/* ---- Motion primitives ------------------------------------------------ */
+
+:root {
+  /* easeOutExpo-ish: fast leave, long silent settle */
+  --pv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* restrained spring: one small overshoot, no jelly */
+  --pv-spring: cubic-bezier(0.34, 1.4, 0.5, 1);
+  --pv-t-fast: 150ms;
+  --pv-t: 280ms;
+  --pv-t-slow: 560ms;
+}
+
+@keyframes pv-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pv-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pv-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.14);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pv-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  75%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
 @keyframes pv-sweep {
   from {
     transform: rotate(0deg);
@@ -131,12 +228,98 @@
   }
 }
 
+.pv-rise {
+  animation: pv-rise var(--pv-t-slow) var(--pv-ease) both;
+}
+
+.pv-fade {
+  animation: pv-fade var(--pv-t) linear both;
+}
+
+.pv-pop {
+  animation: pv-pop 460ms var(--pv-spring) both;
+}
+
+.pv-ping {
+  animation: pv-ping 2.2s cubic-bezier(0, 0.6, 0.4, 1) infinite;
+}
+
 .pv-sweep-origin {
   transform-origin: 170px 170px;
   animation: pv-sweep 7s linear infinite;
 }
 
+/* Tab indicator + blip travel: position only, GPU-hinted where it matters */
+.pv-indicator {
+  transition:
+    left var(--pv-t) var(--pv-ease),
+    width var(--pv-t) var(--pv-ease);
+}
+
+.pv-blip {
+  transition:
+    left 700ms var(--pv-ease),
+    top 700ms var(--pv-ease);
+}
+
+/* ---- Texture + chrome -------------------------------------------------- */
+
+/* Faint ops-grid behind the instrument, fading at the edges */
+.pv-grid {
+  background-image:
+    linear-gradient(to right, oklch(1 0 0 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.035) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.pv-grid-fade {
+  mask-image: radial-gradient(ellipse 75% 75% at center, black 25%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse 75% 75% at center, black 25%, transparent 78%);
+}
+
+::selection {
+  background: oklch(0.8 0.168 163 / 0.28);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.3 0.012 175) transparent;
+}
+
+/* One focus treatment everywhere: 2px signal ring, offset off the edge */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid oklch(0.8 0.168 163);
+  outline-offset: 2px;
+}
+
+/* Micro-label: the uppercase eyebrow used across the product */
+.pv-label {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--color-mist-500);
+}
+
+/* Data figures: mono, tabular, slightly tightened */
+.pv-num {
+  font-family: var(--font-geist-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* ---- Reduced motion: everything settles instantly ----------------------- */
+
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
   .pv-sweep-origin {
     animation: none;
     opacity: 0.45;

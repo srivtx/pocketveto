@@ -3,6 +3,9 @@
 /**
  * PocketVeto — the items list: countdown cards with veto/claim/redeem actions
  * and the embedded playbook for the selected item.
+ *
+ * Each card carries an urgency rail (the colored left edge) so scan-order
+ * and stakes line up without painting the whole card in tint.
  */
 
 import { useState } from 'react';
@@ -14,13 +17,14 @@ import { KIND_META, KIND_ORDER } from '@/lib/pocketveto/types';
 import { countdownLabel } from '@/lib/pocketveto/dates';
 import { formatMoney } from '@/lib/pocketveto/risk';
 import { PlaybookPanel } from './PlaybookPanel';
+import { KindGlyph } from './KindGlyph';
 
-const TIER_CLASS: Record<string, string> = {
-  overdue: 'border-rose-500/50 bg-rose-500/10',
-  critical: 'border-rose-500/50 bg-rose-500/10',
-  warning: 'border-amber-500/40 bg-amber-500/5',
-  headsUp: 'border-emerald-500/25 bg-emerald-500/5',
-  clear: 'border-zinc-800 bg-zinc-900/40',
+const TIER_RAIL: Record<string, string> = {
+  overdue: 'border-l-cliff-400',
+  critical: 'border-l-cliff-400',
+  warning: 'border-l-warn-400',
+  headsUp: 'border-l-signal-500',
+  clear: 'border-l-ink-700',
 };
 
 const STATUS_LABEL: Record<ItemStatus, string> = {
@@ -57,14 +61,14 @@ export function ItemsView({
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_minmax(320px,420px)]">
       <div>
-        <div className="mb-4 flex flex-wrap gap-1.5">
+        <div className="mb-4 flex flex-wrap gap-1.5" role="group" aria-label="Filter by kind">
           <button
             type="button"
             onClick={() => setFilter('all')}
-            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+            className={`pv-num rounded-full border px-3 py-1.5 text-xs transition-colors duration-200 ${
               filter === 'all'
-                ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300'
-                : 'border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                ? 'border-signal-500/50 bg-signal-400/15 text-signal-300'
+                : 'border-ink-800 text-mist-400 hover:border-ink-700 hover:text-mist-200'
             }`}
           >
             All ({views.length})
@@ -74,67 +78,72 @@ export function ItemsView({
               key={k}
               type="button"
               onClick={() => setFilter(k)}
-              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors duration-200 ${
                 filter === k
-                  ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300'
-                  : 'border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  ? 'border-signal-500/50 bg-signal-400/15 text-signal-300'
+                  : 'border-ink-800 text-mist-400 hover:border-ink-700 hover:text-mist-200'
               }`}
             >
-              {KIND_META[k].emoji} {KIND_META[k].plural} (
-              {views.filter((v) => v.kind === k).length})
+              <KindGlyph kind={k} className="h-3 w-3" />
+              {KIND_META[k].plural}
+              <span className="pv-num text-mist-500">
+                ({views.filter((v) => v.kind === k).length})
+              </span>
             </button>
           ))}
         </div>
 
         <div className="grid gap-3">
           {list.length === 0 && (
-            <div className="rounded-xl border border-dashed border-zinc-800 p-8 text-center text-sm text-zinc-500">
+            <div className="rounded-xl border border-dashed border-ink-800 p-8 text-center text-sm leading-relaxed text-mist-500">
               Nothing here yet. Add your first money date — the streaming sub you keep
               forgetting, the gift card in the drawer, the passport.
             </div>
           )}
-          {list.map((item) => (
+          {list.map((item, i) => (
             <div
               key={item.id}
-              className={`rounded-xl border p-4 transition-colors ${TIER_CLASS[item.urgency] ?? TIER_CLASS.clear} ${
-                item.status !== 'active' ? 'opacity-60' : ''
-              }`}
+              style={{ animationDelay: `${Math.min(i, 8) * 45}ms` }}
+              className={`pv-rise rounded-xl border border-ink-800 border-l-2 bg-ink-925/40 p-4 transition-colors duration-200 hover:border-ink-700 ${
+                TIER_RAIL[item.urgency] ?? TIER_RAIL.clear
+              } ${item.status !== 'active' ? 'opacity-60' : ''}`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-zinc-100">
-                      {KIND_META[item.kind].emoji} {item.name}
-                    </span>
+                    <KindGlyph kind={item.kind} className="h-4 w-4 shrink-0 text-mist-400" />
+                    <span className="text-sm font-semibold text-mist-100">{item.name}</span>
                     {item.status !== 'active' && (
-                      <Badge variant="outline" className="border-zinc-700 text-zinc-400">
+                      <Badge variant="outline" className="border-ink-700 text-mist-400">
                         {STATUS_LABEL[item.status]}
                       </Badge>
                     )}
                     {item.lapsedCycles > 0 && (
-                      <span className="text-[11px] text-rose-400">
+                      <span className="pv-num text-[11px] text-cliff-400">
                         {item.lapsedCycles} renewal{item.lapsedCycles > 1 ? 's' : ''} fired while away
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    {KIND_META[item.kind].verb} · {formatMoney(item.costAtStake)} at stake
-                    {item.annualized > 0 && ` · ${formatMoney(item.annualized)}/yr`}
+                  <p className="mt-1.5 text-xs text-mist-500">
+                    {KIND_META[item.kind].verb} · <span className="pv-num">{formatMoney(item.costAtStake)}</span> at stake
+                    {item.annualized > 0 && (
+                      <> · <span className="pv-num">{formatMoney(item.annualized)}/yr</span></>
+                    )}
                   </p>
                 </div>
                 <div className="text-right">
                   <p
-                    className={`text-sm font-bold ${
+                    className={`pv-num text-sm font-semibold ${
                       item.status === 'active' && item.daysLeft <= 2
-                        ? 'text-rose-400'
+                        ? 'text-cliff-300'
                         : item.status === 'active' && item.daysLeft <= 7
-                          ? 'text-amber-400'
-                          : 'text-zinc-300'
+                          ? 'text-warn-300'
+                          : 'text-mist-300'
                     }`}
                   >
                     {countdownLabel(item.daysLeft)}
                   </p>
-                  <p className="text-[11px] text-zinc-600">{item.end}</p>
+                  <p className="pv-num mt-0.5 text-[11px] text-mist-500">{item.end}</p>
                 </div>
               </div>
 
@@ -142,8 +151,10 @@ export function ItemsView({
                 <Button
                   size="sm"
                   variant="outline"
-                  className={`h-7 border-zinc-700 px-2 text-xs ${
-                    selected === item.id ? 'bg-zinc-800' : ''
+                  className={`h-7 border-ink-800 px-2.5 text-xs transition-colors ${
+                    selected === item.id
+                      ? 'border-signal-500/50 bg-ink-900 text-signal-300'
+                      : 'hover:bg-ink-900'
                   }`}
                   onClick={() => setSelected(selected === item.id ? null : item.id)}
                 >
@@ -153,7 +164,7 @@ export function ItemsView({
                   <>
                     <Button
                       size="sm"
-                      className="h-7 bg-emerald-500 px-2 text-xs text-zinc-950 hover:bg-emerald-400"
+                      className="h-7 bg-signal-400 px-2.5 text-xs font-semibold text-ink-950 hover:bg-signal-300"
                       onClick={() =>
                         onStatus(
                           item.id,
@@ -161,7 +172,7 @@ export function ItemsView({
                         )
                       }
                     >
-                      <CheckCircle2 className="mr-1 h-3.5 w-3.5" aria-hidden />
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
                       {item.kind === 'giftcard'
                         ? 'Redeemed'
                         : item.kind === 'warranty'
@@ -171,17 +182,17 @@ export function ItemsView({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-7 px-2 text-xs text-zinc-400 hover:text-zinc-200"
+                      className="h-7 px-2.5 text-xs text-mist-400 hover:text-mist-100"
                       onClick={() => onEdit(item)}
                     >
-                      <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden /> Edit
+                      <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit
                     </Button>
                   </>
                 ) : (
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 px-2 text-xs text-zinc-400 hover:text-zinc-200"
+                    className="h-7 px-2.5 text-xs text-mist-400 hover:text-mist-100"
                     onClick={() => onStatus(item.id, 'active')}
                   >
                     Reactivate
@@ -190,7 +201,7 @@ export function ItemsView({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="ml-auto h-7 px-2 text-xs text-zinc-500 hover:text-rose-400"
+                  className="ml-auto h-7 px-2.5 text-xs text-mist-500 hover:text-cliff-300"
                   onClick={() => onDelete(item.id)}
                   aria-label={`Delete ${item.name}`}
                 >
@@ -202,12 +213,12 @@ export function ItemsView({
         </div>
       </div>
 
-      <aside aria-label="Selected item playbook" className="lg:sticky lg:top-4 self-start">
+      <aside aria-label="Selected item playbook" className="self-start lg:sticky lg:top-40">
         {selectedView ? (
           <PlaybookPanel item={selectedView} />
         ) : (
-          <div className="rounded-xl border border-dashed border-zinc-800 p-6 text-sm text-zinc-500">
-            Select <span className="text-zinc-300">Playbook</span> on any item to see the exact
+          <div className="rounded-xl border border-dashed border-ink-800 p-6 text-sm leading-relaxed text-mist-500">
+            Select <span className="text-mist-300">Playbook</span> on any item to see the exact
             steps — cancellation paths, claim checklists, redemption moves, or the payoff math
             that beats the 0% APR cliff.
           </div>

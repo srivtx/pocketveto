@@ -2,16 +2,44 @@
 
 /**
  * PocketVeto — app shell: header ticker, tabs, radar home, dialogs.
+ *
+ * Motion: the $ ticker counts up (useCountUp), the tab indicator glides,
+ * tab content rises in once per switch, banners and modals enter on the
+ * house ease. Delete confirms happen in-app (AlertDialog), never a
+ * native window.confirm.
  */
 
-import { useEffect, useMemo, useState } from 'react';
-import { Plus, Radar as RadarIcon, ListChecks, PiggyBank, Settings2, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  AlertTriangle,
+  BellRing,
+  ListChecks,
+  Pencil,
+  PiggyBank,
+  Plus,
+  Radar as RadarIcon,
+  Settings2,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useItems } from './useItems';
 import { RadarChart } from './RadarChart';
 import { ItemsView } from './ItemsView';
 import { SavedView, SettingsView } from './SavedSettings';
 import { ItemDialog } from './ItemDialog';
+import { KindGlyph } from './KindGlyph';
+import { Logo } from './Logo';
+import { useCountUp } from './motion';
 import { formatMoney } from '@/lib/pocketveto/risk';
 import { countdownLabel } from '@/lib/pocketveto/dates';
 import { KIND_META, type ItemStatus, type MoneyDateItem, type ItemView } from '@/lib/pocketveto/types';
@@ -33,12 +61,31 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
   const [editing, setEditing] = useState<MoneyDateItem | null>(null);
   const [selectedBlip, setSelectedBlip] = useState<ItemView | null>(null);
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
+
+  const atRiskDisplay = useCountUp(state.atRisk);
+  const runRateDisplay = useCountUp(state.runRate);
 
   const lapsed = useMemo(
     () => state.views.filter((v) => v.lapsedCycles > 0),
     [state.views]
   );
   const needsPermission = state.ready && permissionState() === 'default' && !nudgeDismissed;
+  const activeCount = state.views.filter((v) => v.status === 'active').length;
+
+  /* Sliding tab indicator: measure the active tab, glide on change/resize. */
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
+  const measure = () => {
+    const el = tabRefs.current[tab];
+    if (el) setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
+  };
+  useLayoutEffect(measure, [tab, state.ready]);
+  useEffect(() => {
+    const onResize = () => measure();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [tab]);
 
   function openAdd() {
     setEditing(null);
@@ -62,16 +109,16 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
     void state.setStatus(id, status);
   }
 
-  function handleDelete(id: string) {
-    if (window.confirm('Remove this money date?')) {
-      void state.deleteItem(id);
-    }
+  function requestDelete(id: string) {
+    const name = state.items.find((i) => i.id === id)?.name ?? 'this money date';
+    setConfirmDelete({ id, name });
   }
 
   if (!state.ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <p className="animate-pulse text-sm text-zinc-500">Scanning…</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-ink-950">
+        <Logo className="h-10 w-10 animate-pulse text-signal-400" />
+        <p className="pv-label">Scanning…</p>
       </div>
     );
   }
@@ -79,34 +126,34 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
   const empty = state.items.length === 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
+    <div className="flex min-h-screen flex-col bg-ink-950 text-mist-100">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-zinc-900 bg-zinc-950/95 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-ink-800/70 bg-ink-950/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <button
             type="button"
             onClick={onExit}
-            className="flex items-center gap-2"
+            className="group flex items-center gap-2.5"
             aria-label="Back to PocketVeto home"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 border border-emerald-500/30">
-              <X className="h-4 w-4 text-emerald-400" aria-hidden />
+            <Logo className="h-8 w-8 text-signal-400 transition-transform duration-300 group-hover:rotate-90" />
+            <span className="hidden font-display text-lg font-semibold tracking-tight sm:block">
+              PocketVeto
             </span>
-            <span className="hidden font-semibold tracking-tight sm:block">PocketVeto</span>
           </button>
 
           <div className="mx-auto flex items-center gap-2">
             <span
-              className={`rounded-full px-3 py-1 text-sm font-bold ${
+              className={`pv-num rounded-full px-3 py-1 text-[13px] font-semibold transition-colors ${
                 state.atRisk > 0
-                  ? 'bg-rose-500/15 text-rose-400'
-                  : 'bg-emerald-500/10 text-emerald-400'
+                  ? 'bg-cliff-400/15 text-cliff-300'
+                  : 'bg-signal-400/10 text-signal-400'
               }`}
             >
-              {state.atRisk > 0 ? `${formatMoney(state.atRisk)} at risk` : 'Nothing at risk'}
+              {state.atRisk > 0 ? `${formatMoney(atRiskDisplay)} at risk` : 'Nothing at risk'}
             </span>
             {state.saved > 0 && (
-              <span className="hidden rounded-full bg-emerald-500/10 px-3 py-1 text-sm font-semibold text-emerald-400 sm:block">
+              <span className="pv-num hidden rounded-full bg-signal-400/10 px-3 py-1 text-[13px] font-semibold text-signal-400 sm:block">
                 {formatMoney(state.saved)} saved
               </span>
             )}
@@ -115,9 +162,9 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
           <Button
             onClick={openAdd}
             size="sm"
-            className="bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
+            className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
           >
-            <Plus className="mr-1 h-4 w-4" aria-hidden /> Add
+            <Plus className="h-4 w-4" aria-hidden /> Add
           </Button>
         </div>
 
@@ -126,38 +173,45 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
           {TABS.map((t) => (
             <button
               key={t.id}
+              ref={(el) => {
+                tabRefs.current[t.id] = el;
+              }}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm transition-colors ${
-                tab === t.id
-                  ? 'border-emerald-400 text-zinc-100'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
+              className={`relative flex shrink-0 items-center gap-1.5 px-3 py-2.5 text-sm transition-colors duration-200 ${
+                tab === t.id ? 'text-mist-100' : 'text-mist-500 hover:text-mist-300'
               }`}
               aria-current={tab === t.id ? 'page' : undefined}
             >
-              <t.icon className="h-4 w-4" aria-hidden />
+              <t.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden />
               {t.label}
               {t.id === 'saved' && state.saved > 0 && (
-                <span className="rounded-full bg-emerald-500/20 px-1.5 text-[10px] font-semibold text-emerald-300">
+                <span className="pv-num rounded-full bg-signal-400/15 px-1.5 text-[10px] font-semibold text-signal-400">
                   {state.items.filter((i) => i.status === 'vetoed' || i.status === 'used').length}
                 </span>
               )}
             </button>
           ))}
+          <span
+            className="pv-indicator absolute bottom-0 h-0.5 rounded-full bg-signal-400"
+            style={{ left: indicator.left + 16, width: Math.max(0, indicator.width - 32) }}
+            aria-hidden
+          />
         </nav>
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
         {/* Notification nudge */}
         {needsPermission && tab === 'radar' && (
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-            <p className="text-sm text-emerald-200">
+          <div className="pv-rise mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-signal-500/30 bg-signal-400/10 p-4">
+            <p className="flex items-center gap-2.5 text-sm text-signal-300">
+              <BellRing className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
               Turn on alerts — T-7, T-2 and day-of warnings while PocketVeto can run.
             </p>
             <div className="flex gap-2">
               <Button
                 size="sm"
-                className="bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
+                className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
                 onClick={async () => {
                   await requestPermission();
                   setNudgeDismissed(true);
@@ -168,7 +222,7 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
               <Button
                 size="sm"
                 variant="ghost"
-                className="text-zinc-400"
+                className="text-mist-400"
                 onClick={() => setNudgeDismissed(true)}
               >
                 Later
@@ -179,33 +233,37 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
 
         {/* Threshold crossings — the alert banner */}
         {state.pendingAlerts.length > 0 && (
-          <div className="mb-5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+          <div className="pv-rise mb-5 rounded-xl border border-warn-400/40 bg-warn-400/10 p-4">
             <div className="mb-2 flex items-start justify-between gap-3">
-              <p className="text-sm font-semibold text-amber-300">
+              <p className="flex items-center gap-2.5 text-sm font-semibold text-warn-300">
+                <BellRing className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
                 {state.pendingAlerts.length} date{state.pendingAlerts.length > 1 ? 's' : ''} crossed
                 an alert threshold:
               </p>
               <button
                 type="button"
                 onClick={state.dismissAlerts}
-                className="rounded-md p-1 text-amber-400/70 hover:bg-amber-500/10 hover:text-amber-300"
+                className="rounded-md p-1 text-warn-400/70 transition-colors hover:bg-warn-400/10 hover:text-warn-300"
                 aria-label="Dismiss alerts"
               >
                 <X className="h-4 w-4" aria-hidden />
               </button>
             </div>
-            <ul className="space-y-1 text-xs text-amber-200/80">
+            <ul className="space-y-1.5 text-xs text-warn-300/80">
               {state.pendingAlerts.slice(0, 5).map((a) => (
-                <li key={`${a.item.id}-${a.threshold}`}>
-                  {KIND_META[a.item.kind].emoji} {a.item.name} — {countdownLabel(a.item.daysLeft)} ·{' '}
-                  {formatMoney(a.item.costAtStake)} at stake
+                <li key={`${a.item.id}-${a.threshold}`} className="flex items-center gap-2">
+                  <KindGlyph kind={a.item.kind} className="h-3.5 w-3.5 shrink-0 text-warn-400" />
+                  <span className="truncate">{a.item.name}</span>
+                  <span className="pv-num shrink-0 text-warn-400">
+                    {countdownLabel(a.item.daysLeft)} · {formatMoney(a.item.costAtStake)}
+                  </span>
                 </li>
               ))}
             </ul>
             <Button
               size="sm"
               variant="outline"
-              className="mt-3 border-amber-500/40 bg-transparent text-amber-300 hover:bg-amber-950/40"
+              className="mt-3 border-warn-400/40 bg-transparent text-warn-300 hover:bg-warn-400/10"
               onClick={() => setTab('items')}
             >
               Review now
@@ -215,23 +273,28 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
 
         {/* While-you-were-away */}
         {lapsed.length > 0 && (
-          <div className="mb-5 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4">
-            <p className="mb-2 text-sm font-semibold text-rose-300">
+          <div className="pv-rise mb-5 rounded-xl border border-cliff-400/40 bg-cliff-400/10 p-4">
+            <p className="mb-2 flex items-center gap-2.5 text-sm font-semibold text-cliff-300">
+              <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
               {lapsed.length} renewal{lapsed.length > 1 ? 's' : ''} fired while you were away:
             </p>
-            <ul className="space-y-1 text-xs text-rose-200/80">
+            <ul className="space-y-1.5 text-xs text-cliff-300/80">
               {lapsed.map((v) => (
-                <li key={v.id}>
-                  {KIND_META[v.kind].emoji} {v.name} — {v.lapsedCycles} cycle
-                  {v.lapsedCycles > 1 ? 's' : ''} passed ({formatMoney(v.costAtStake * v.lapsedCycles)} billed);
-                  date rolled forward. Still want it?
+                <li key={v.id} className="flex items-center gap-2">
+                  <KindGlyph kind={v.kind} className="h-3.5 w-3.5 shrink-0 text-cliff-400" />
+                  <span className="truncate">
+                    {v.name} — {v.lapsedCycles} cycle{v.lapsedCycles > 1 ? 's' : ''} passed
+                  </span>
+                  <span className="pv-num shrink-0 text-cliff-400">
+                    {formatMoney(v.costAtStake * v.lapsedCycles)} billed
+                  </span>
                 </li>
               ))}
             </ul>
             <Button
               size="sm"
               variant="outline"
-              className="mt-3 border-rose-500/40 bg-transparent text-rose-300 hover:bg-rose-950/40"
+              className="mt-3 border-cliff-400/40 bg-transparent text-cliff-300 hover:bg-cliff-400/10"
               onClick={() => setTab('items')}
             >
               Review now
@@ -239,120 +302,149 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
           </div>
         )}
 
-        {tab === 'radar' && (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,460px)_1fr]">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
-              <RadarChart
-                views={state.views}
-                onSelect={(v) => setSelectedBlip(v)}
-              />
-              <div className="mt-3 flex flex-wrap justify-center gap-3 text-[11px] text-zinc-500">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-rose-400" aria-hidden /> ≤2 days / overdue
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden /> ≤7 days
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden /> ≤30 days
-                </span>
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-                  <p className="text-3xl font-bold text-rose-400">{formatMoney(state.atRisk)}</p>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    at stake across {state.views.filter((v) => v.status === 'active').length} active dates
-                  </p>
+        <div key={tab} className="pv-rise">
+          {tab === 'radar' && (
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,460px)_1fr]">
+              <div className="rounded-2xl border border-ink-800 bg-ink-925/50 p-4">
+                <div className="relative">
+                  <div className="pv-grid pv-grid-fade absolute inset-0" aria-hidden />
+                  <RadarChart views={state.views} onSelect={(v) => setSelectedBlip(v)} />
                 </div>
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-                  <p className="text-3xl font-bold text-zinc-100">{formatMoney(state.runRate)}</p>
-                  <p className="mt-1 text-xs text-zinc-500">annualized run-rate if all renew</p>
+                <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-[11px] text-mist-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-cliff-400" aria-hidden /> ≤2 days / overdue
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-warn-400" aria-hidden /> ≤7 days
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-signal-400" aria-hidden /> ≤30 days
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-mist-400" aria-hidden /> beyond
+                  </span>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-                <h3 className="mb-3 text-sm font-semibold text-zinc-200">Next 7 days</h3>
-                {state.weekItems.length === 0 ? (
-                  <p className="text-sm text-zinc-500">
-                    Nothing fires this week. The quiet weeks are for checking the radar.
-                  </p>
-                ) : (
-                  <ul className="grid gap-2">
-                    {state.weekItems.map((v) => (
-                      <li
-                        key={v.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800/80 bg-zinc-950/60 px-3 py-2"
-                      >
-                        <span className="min-w-0 truncate text-sm text-zinc-200">
-                          {KIND_META[v.kind].emoji} {v.name}
-                        </span>
-                        <span
-                          className={`shrink-0 text-xs font-semibold ${
-                            v.daysLeft <= 2 ? 'text-rose-400' : 'text-amber-400'
-                          }`}
-                        >
-                          {countdownLabel(v.daysLeft)} · {formatMoney(v.costAtStake)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              {empty && (
-                <div className="rounded-2xl border border-dashed border-zinc-700 p-8 text-center">
-                  <p className="text-sm text-zinc-300">
-                    Your radar is empty. Add the subscription you keep forgetting, or load a
-                    sample set to see how this works.
-                  </p>
-                  <div className="mt-4 flex justify-center gap-2">
-                    <Button
-                      className="bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
-                      onClick={openAdd}
-                    >
-                      <Plus className="mr-1.5 h-4 w-4" aria-hidden /> Add first date
-                    </Button>
-                    <Button variant="outline" className="border-zinc-700" onClick={() => void state.loadSample()}>
-                      Load sample data
-                    </Button>
+              <div className="grid content-start gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-2xl border border-ink-800 bg-ink-925/50 p-5">
+                    <p className="pv-num text-3xl font-semibold tracking-tight text-cliff-300">
+                      {formatMoney(atRiskDisplay)}
+                    </p>
+                    <p className="mt-1.5 text-xs leading-relaxed text-mist-500">
+                      at stake across {activeCount} active date{activeCount === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-ink-800 bg-ink-925/50 p-5">
+                    <p className="pv-num text-3xl font-semibold tracking-tight text-mist-100">
+                      {formatMoney(runRateDisplay)}
+                    </p>
+                    <p className="mt-1.5 text-xs leading-relaxed text-mist-500">
+                      annualized run-rate if all renew
+                    </p>
                   </div>
                 </div>
-              )}
+
+                <div className="rounded-2xl border border-ink-800 bg-ink-925/50 p-5">
+                  <h3 className="pv-label mb-4">Next 7 days</h3>
+                  {state.weekItems.length === 0 ? (
+                    <p className="text-sm leading-relaxed text-mist-500">
+                      Nothing fires this week. The quiet weeks are for checking the radar.
+                    </p>
+                  ) : (
+                    <ul className="grid gap-2">
+                      {state.weekItems.map((v) => (
+                        <li
+                          key={v.id}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-ink-800/80 bg-ink-950/60 px-3 py-2 transition-colors hover:border-ink-700"
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            <KindGlyph kind={v.kind} className="h-4 w-4 shrink-0 text-mist-400" />
+                            <span className="truncate text-sm text-mist-300">{v.name}</span>
+                          </span>
+                          <span
+                            className={`pv-num shrink-0 text-xs font-semibold ${
+                              v.daysLeft <= 2 ? 'text-cliff-300' : 'text-warn-300'
+                            }`}
+                          >
+                            {countdownLabel(v.daysLeft)} · {formatMoney(v.costAtStake)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {empty && (
+                  <div className="rounded-2xl border border-dashed border-ink-700 p-8 text-center">
+                    <p className="text-sm leading-relaxed text-mist-300">
+                      Your radar is empty. Add the subscription you keep forgetting, or load a
+                      sample set to see how this works.
+                    </p>
+                    <div className="mt-5 flex justify-center gap-2">
+                      <Button
+                        className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
+                        onClick={openAdd}
+                      >
+                        <Plus className="h-4 w-4" aria-hidden /> Add first date
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-ink-700 hover:bg-ink-900"
+                        onClick={() => void state.loadSample()}
+                      >
+                        Load sample data
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {tab === 'items' && (
-          <ItemsView
-            views={state.views}
-            onEdit={openEdit}
-            onStatus={handleStatus}
-            onDelete={handleDelete}
-          />
-        )}
+          {tab === 'items' && (
+            <ItemsView
+              views={state.views}
+              onEdit={openEdit}
+              onStatus={handleStatus}
+              onDelete={requestDelete}
+            />
+          )}
 
-        {tab === 'saved' && <SavedView items={state.items} />}
+          {tab === 'saved' && <SavedView items={state.items} />}
 
-        {tab === 'settings' && (
-          <SettingsView
-            items={state.items}
-            onExport={state.exportJSON}
-            onImport={state.importJSON}
-            onClearAll={() => void state.clearAll()}
-            onLoadSample={() => void state.loadSample()}
-          />
-        )}
+          {tab === 'settings' && (
+            <SettingsView
+              items={state.items}
+              onExport={state.exportJSON}
+              onImport={state.importJSON}
+              onClearAll={() => void state.clearAll()}
+              onLoadSample={() => void state.loadSample()}
+            />
+          )}
+        </div>
       </main>
 
-      <footer className="mt-auto border-t border-zinc-900 bg-zinc-950">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-zinc-600">
-          <p>PocketVeto v1.0.0 — local-first. Nothing leaves this device.</p>
-          <button onClick={onExit} className="hover:text-zinc-400">
-            About the project
-          </button>
+      <footer className="mt-auto border-t border-ink-800/70 bg-ink-950">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-mist-500">
+          <p className="flex items-center gap-2">
+            <Logo className="h-4 w-4 text-mist-500" />
+            PocketVeto v1.1.0 — local-first. Nothing leaves this device.
+          </p>
+          <div className="flex gap-4">
+            <a
+              href="https://github.com/srivtx/pocketveto"
+              target="_blank"
+              rel="noreferrer"
+              className="transition-colors hover:text-mist-300"
+            >
+              GitHub
+            </a>
+            <button onClick={onExit} className="transition-colors hover:text-mist-300">
+              About the project
+            </button>
+          </div>
         </div>
       </footer>
 
@@ -361,13 +453,41 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
         onOpenChange={setDialogOpen}
         editing={editing}
         onSave={handleSave}
-        onDelete={handleDelete}
+        onDelete={requestDelete}
       />
+
+      {/* Delete confirmation — in-app, never window.confirm */}
+      <AlertDialog open={confirmDelete !== null} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent className="border-ink-800 bg-ink-925 sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display tracking-tight text-mist-100">
+              Remove {confirmDelete?.name ?? 'this item'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="leading-relaxed text-mist-400">
+              This deletes it from this device. There is no cloud copy — that&apos;s the point.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-ink-800 bg-transparent text-mist-300 hover:bg-ink-900 hover:text-mist-100">
+              Keep it
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-cliff-400 font-semibold text-ink-950 hover:bg-cliff-300"
+              onClick={() => {
+                if (confirmDelete) void state.deleteItem(confirmDelete.id);
+                setConfirmDelete(null);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Blip click → quick view + playbook */}
       {selectedBlip && (
         <div
-          className="fixed inset-0 z-40 flex items-end justify-center bg-zinc-950/70 p-4 backdrop-blur-sm sm:items-center"
+          className="pv-fade fixed inset-0 z-40 flex items-end justify-center bg-ink-950/70 p-4 backdrop-blur-sm sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-label={selectedBlip.name}
@@ -375,61 +495,69 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
             if (e.target === e.currentTarget) setSelectedBlip(null);
           }}
         >
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
-            <div className="mb-2 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm text-zinc-500">{KIND_META[selectedBlip.kind].label}</p>
-                <h3 className="text-lg font-semibold text-zinc-100">
-                  {KIND_META[selectedBlip.kind].emoji} {selectedBlip.name}
-                </h3>
+          <div className="pv-pop w-full max-w-md rounded-2xl border border-ink-800 bg-ink-925 p-5 shadow-2xl shadow-black/50">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink-800 bg-ink-950 text-signal-400">
+                  <KindGlyph kind={selectedBlip.kind} className="h-4.5 w-4.5" />
+                </span>
+                <div>
+                  <p className="pv-label">{KIND_META[selectedBlip.kind].label}</p>
+                  <h3 className="font-display text-lg font-semibold tracking-tight text-mist-100">
+                    {selectedBlip.name}
+                  </h3>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedBlip(null)}
-                className="rounded-md p-1 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
+                className="rounded-md p-1 text-mist-500 transition-colors hover:bg-ink-900 hover:text-mist-200"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" aria-hidden />
               </button>
             </div>
             <div className="mb-4 grid grid-cols-2 gap-3 text-center">
-              <div className="rounded-lg bg-zinc-900/70 p-3">
+              <div className="rounded-lg border border-ink-800 bg-ink-950/70 p-3">
                 <p
-                  className={`text-xl font-bold ${
+                  className={`pv-num text-xl font-semibold ${
                     selectedBlip.daysLeft <= 2
-                      ? 'text-rose-400'
+                      ? 'text-cliff-300'
                       : selectedBlip.daysLeft <= 7
-                        ? 'text-amber-400'
-                        : 'text-zinc-100'
+                        ? 'text-warn-300'
+                        : 'text-mist-100'
                   }`}
                 >
                   {countdownLabel(selectedBlip.daysLeft)}
                 </p>
-                <p className="text-[11px] text-zinc-500">{selectedBlip.end}</p>
+                <p className="pv-num mt-0.5 text-[11px] text-mist-500">{selectedBlip.end}</p>
               </div>
-              <div className="rounded-lg bg-zinc-900/70 p-3">
-                <p className="text-xl font-bold text-rose-400">
+              <div className="rounded-lg border border-ink-800 bg-ink-950/70 p-3">
+                <p className="pv-num text-xl font-semibold text-cliff-300">
                   {formatMoney(selectedBlip.costAtStake)}
                 </p>
-                <p className="text-[11px] text-zinc-500">at stake</p>
+                <p className="mt-0.5 text-[11px] text-mist-500">at stake</p>
               </div>
             </div>
+            <p className="mb-4 text-xs leading-relaxed text-mist-400">
+              {KIND_META[selectedBlip.kind].verb}
+            </p>
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
-                className="bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
+                className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
                 onClick={() => {
                   const target = state.items.find((i) => i.id === selectedBlip.id);
                   if (target) openEdit(target);
                   setSelectedBlip(null);
                 }}
               >
-                Open / edit
+                <Pencil className="h-3.5 w-3.5" aria-hidden /> Open / edit
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="border-zinc-800"
+                className="border-ink-800 hover:bg-ink-900"
                 onClick={() => {
                   handleStatus(
                     selectedBlip.id,
@@ -449,7 +577,7 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
               <Button
                 size="sm"
                 variant="ghost"
-                className="ml-auto text-zinc-500"
+                className="ml-auto text-mist-500"
                 onClick={() => setSelectedBlip(null)}
               >
                 Close

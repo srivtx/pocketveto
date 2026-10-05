@@ -19,7 +19,7 @@ import { atRiskSum, savedSum, annualRunRate, atRiskWithin, formatMoney } from '@
 import { payoffPlan } from '@/lib/pocketveto/interest';
 import { servicePlaybook, genericPlaybook, cancelEmailDraft } from '@/lib/pocketveto/playbooks';
 import { importItems, exportItems } from '@/lib/pocketveto/store';
-import type { MoneyDateItem } from '@/lib/pocketveto/types';
+import type { ItemView, MoneyDateItem } from '@/lib/pocketveto/types';
 
 const T = (y: number, m: number, d: number) => new Date(y, m - 1, d, 12, 0, 0);
 const iso = (y: number, m: number, d: number) =>
@@ -98,7 +98,10 @@ describe('dates', () => {
 
   test('regression: toView is Array.map-safe (index must not leak into `from`)', () => {
     // items.map(toView) passes (item, index, array) — toView must ignore the index.
-    const views = [item({ id: 'i0' }), item({ id: 'i1' }), item({ id: 'i2' })].map(toView);
+    // Type-only narrowing keeps tsc happy; .map still passes the index at
+    // runtime, which is exactly what this regression guards against.
+    const toViewOf = toView as (i: MoneyDateItem) => ItemView;
+    const views = [item({ id: 'i0' }), item({ id: 'i1' }), item({ id: 'i2' })].map(toViewOf);
     expect(views).toHaveLength(3);
     expect(views.every((v) => Number.isInteger(v.daysLeft))).toBe(true);
     expect(views.every((v) => v.annualized === 0)).toBe(true); // 'once' recurrence

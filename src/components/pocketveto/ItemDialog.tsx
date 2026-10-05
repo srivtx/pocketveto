@@ -7,6 +7,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { Info } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ import { KIND_META, KIND_ORDER } from '@/lib/pocketveto/types';
 import { todayISO, addDays } from '@/lib/pocketveto/dates';
 import { newId } from '@/lib/pocketveto/store';
 import { servicePlaybook } from '@/lib/pocketveto/playbooks';
+import { KindGlyph } from './KindGlyph';
 
 function costLabel(kind: ItemKind): string {
   switch (kind) {
@@ -99,6 +101,8 @@ function draftFrom(item?: MoneyDateItem | null): ItemDraft {
   };
 }
 
+const inputCls = 'border-ink-800 bg-ink-900 text-mist-100 placeholder:text-mist-500/60 focus-visible:ring-signal-400/50';
+
 export function ItemDialog({
   open,
   onOpenChange,
@@ -114,7 +118,7 @@ export function ItemDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto border-zinc-800 bg-zinc-950 sm:max-w-lg">
+      <DialogContent className="max-h-[88vh] overflow-y-auto border-ink-800 bg-ink-925 sm:max-w-lg">
         <ItemForm
           key={`${open}-${editing?.id ?? 'new'}`}
           initial={draftFrom(editing)}
@@ -200,23 +204,26 @@ function ItemForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle className="text-zinc-100">
+        <DialogTitle className="font-display tracking-tight text-mist-100">
           {hasExisting ? 'Edit money date' : 'New money date'}
         </DialogTitle>
-        <DialogDescription className="text-zinc-500">{hint.hint}</DialogDescription>
+        <DialogDescription className="leading-relaxed text-mist-400">{hint.hint}</DialogDescription>
       </DialogHeader>
 
       <div className="grid gap-4">
         <div className="grid gap-1.5">
-          <Label htmlFor="pv-kind">Kind</Label>
+          <Label htmlFor="pv-kind" className="pv-label">Kind</Label>
           <Select value={draft.kind} onValueChange={(v) => set('kind', v as ItemKind)}>
-            <SelectTrigger id="pv-kind" className="border-zinc-800 bg-zinc-900">
+            <SelectTrigger id="pv-kind" className={inputCls}>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="border-zinc-800 bg-zinc-950">
+            <SelectContent className="border-ink-800 bg-ink-925">
               {KIND_ORDER.map((k) => (
-                <SelectItem key={k} value={k}>
-                  {KIND_META[k].emoji} {KIND_META[k].label}
+                <SelectItem key={k} value={k} className="text-mist-100 focus:bg-ink-850 focus:text-mist-100">
+                  <span className="flex items-center gap-2">
+                    <KindGlyph kind={k} className="h-4 w-4 text-mist-400" />
+                    {KIND_META[k].label}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -224,7 +231,7 @@ function ItemForm({
         </div>
 
         <div className="grid gap-1.5">
-          <Label htmlFor="pv-name">Name</Label>
+          <Label htmlFor="pv-name" className="pv-label">Name</Label>
           <Input
             id="pv-name"
             value={draft.name}
@@ -236,11 +243,12 @@ function ItemForm({
                   ? 'Amazon gift card from Grandma'
                   : 'Adobe Creative Cloud'
             }
-            className="border-zinc-800 bg-zinc-900 focus-visible:ring-emerald-500/50"
+            className={inputCls}
           />
           {service && (
-            <p className="text-xs text-emerald-400/90">
-              ⓘ Cancel playbook available for{' '}
+            <p className="flex items-start gap-1.5 text-xs leading-relaxed text-signal-400/90">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+              Cancel playbook available for{' '}
               {service.title.toLowerCase().replace('Cancel ', '')}.
             </p>
           )}
@@ -248,7 +256,7 @@ function ItemForm({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
-            <Label htmlFor="pv-cost">{costLabel(draft.kind)}</Label>
+            <Label htmlFor="pv-cost" className="pv-label">{costLabel(draft.kind)}</Label>
             <Input
               id="pv-cost"
               type="number"
@@ -257,37 +265,37 @@ function ItemForm({
               value={draft.costAtStake}
               onChange={(e) => set('costAtStake', e.target.value)}
               placeholder="45"
-              className="border-zinc-800 bg-zinc-900"
+              className={`${inputCls} pv-num`}
             />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="pv-start">Starts</Label>
+            <Label htmlFor="pv-start" className="pv-label">Starts</Label>
             <Input
               id="pv-start"
               type="date"
               value={draft.start}
               onChange={(e) => set('start', e.target.value)}
-              className="border-zinc-800 bg-zinc-900"
+              className={`${inputCls} pv-num`}
             />
           </div>
         </div>
 
         <div className="grid gap-1.5">
-          <Label htmlFor="pv-end">{endLabel(draft.kind)}</Label>
+          <Label htmlFor="pv-end" className="pv-label">{endLabel(draft.kind)}</Label>
           <Input
             id="pv-end"
             type="date"
             required
             value={draft.end}
             onChange={(e) => set('end', e.target.value)}
-            className="border-zinc-800 bg-zinc-900"
+            className={`${inputCls} pv-num`}
           />
         </div>
 
         {draft.kind === 'promo' && (
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="pv-apr">APR after promo (%)</Label>
+              <Label htmlFor="pv-apr" className="pv-label">APR after promo (%)</Label>
               <Input
                 id="pv-apr"
                 type="number"
@@ -295,11 +303,11 @@ function ItemForm({
                 step="0.01"
                 value={draft.apr}
                 onChange={(e) => set('apr', e.target.value)}
-                className="border-zinc-800 bg-zinc-900"
+                className={`${inputCls} pv-num`}
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="pv-months">Promo length (months)</Label>
+              <Label htmlFor="pv-months" className="pv-label">Promo length (months)</Label>
               <Input
                 id="pv-months"
                 type="number"
@@ -307,7 +315,7 @@ function ItemForm({
                 step="1"
                 value={draft.promoMonths}
                 onChange={(e) => set('promoMonths', e.target.value)}
-                className="border-zinc-800 bg-zinc-900"
+                className={`${inputCls} pv-num`}
               />
             </div>
           </div>
@@ -315,39 +323,39 @@ function ItemForm({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
-            <Label htmlFor="pv-rec">Repeats</Label>
+            <Label htmlFor="pv-rec" className="pv-label">Repeats</Label>
             <Select value={draft.recurrence} onValueChange={(v) => set('recurrence', v as Recurrence)}>
-              <SelectTrigger id="pv-rec" className="border-zinc-800 bg-zinc-900">
+              <SelectTrigger id="pv-rec" className={inputCls}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-zinc-800 bg-zinc-950">
-                <SelectItem value="once">One-time</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="annual">Annual</SelectItem>
-                <SelectItem value="custom">Every N days</SelectItem>
+              <SelectContent className="border-ink-800 bg-ink-925">
+                <SelectItem value="once" className="text-mist-100 focus:bg-ink-850 focus:text-mist-100">One-time</SelectItem>
+                <SelectItem value="monthly" className="text-mist-100 focus:bg-ink-850 focus:text-mist-100">Monthly</SelectItem>
+                <SelectItem value="annual" className="text-mist-100 focus:bg-ink-850 focus:text-mist-100">Annual</SelectItem>
+                <SelectItem value="custom" className="text-mist-100 focus:bg-ink-850 focus:text-mist-100">Every N days</SelectItem>
               </SelectContent>
             </Select>
           </div>
           {draft.recurrence === 'custom' && (
             <div className="grid gap-1.5">
-              <Label htmlFor="pv-days">N (days)</Label>
+              <Label htmlFor="pv-days" className="pv-label">N (days)</Label>
               <Input
                 id="pv-days"
                 type="number"
                 min="1"
                 value={draft.customDays}
                 onChange={(e) => set('customDays', e.target.value)}
-                className="border-zinc-800 bg-zinc-900"
+                className={`${inputCls} pv-num`}
               />
             </div>
           )}
         </div>
 
         {draft.recurrence !== 'once' && (
-          <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2.5">
+          <div className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900/50 px-3 py-2.5">
             <div>
-              <p className="text-sm font-medium text-zinc-200">Auto-advance renewals</p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-sm font-medium text-mist-200">Auto-advance renewals</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-mist-500">
                 When a renewal passes, roll the date forward and count it as money spent.
               </p>
             </div>
@@ -360,36 +368,36 @@ function ItemForm({
         )}
 
         <div className="grid gap-1.5">
-          <Label htmlFor="pv-notes">Notes</Label>
+          <Label htmlFor="pv-notes" className="pv-label">Notes</Label>
           <Textarea
             id="pv-notes"
             value={draft.notes}
             onChange={(e) => set('notes', e.target.value)}
             placeholder="Order number, where the receipt lives, who to call…"
-            className="min-h-[70px] border-zinc-800 bg-zinc-900"
+            className="min-h-[70px] border-ink-800 bg-ink-900 text-mist-100 placeholder:text-mist-500/60 focus-visible:ring-signal-400/50"
           />
         </div>
 
         <div className="grid gap-1.5">
-          <Label htmlFor="pv-url">Manage-it link</Label>
+          <Label htmlFor="pv-url" className="pv-label">Manage-it link</Label>
           <Input
             id="pv-url"
             type="url"
             value={draft.url}
             onChange={(e) => set('url', e.target.value)}
             placeholder="https://netflix.com/cancelplan"
-            className="border-zinc-800 bg-zinc-900"
+            className={inputCls}
           />
         </div>
 
-        {error && <p className="text-sm text-rose-400">{error}</p>}
+        {error && <p className="pv-rise text-sm text-cliff-300">{error}</p>}
       </div>
 
       <DialogFooter className="gap-2">
         {hasExisting && onDelete && draft.id && (
           <Button
             variant="outline"
-            className="mr-auto border-zinc-800 text-rose-400 hover:bg-rose-950/40 hover:text-rose-300"
+            className="mr-auto border-ink-800 text-cliff-300 hover:bg-cliff-400/10 hover:text-cliff-300"
             onClick={() => {
               onDelete(draft.id!);
               onDone();
@@ -398,11 +406,11 @@ function ItemForm({
             Delete
           </Button>
         )}
-        <Button variant="outline" className="border-zinc-800" onClick={onCancel}>
+        <Button variant="outline" className="border-ink-800 hover:bg-ink-900" onClick={onCancel}>
           Cancel
         </Button>
         <Button
-          className="bg-emerald-500 text-zinc-950 hover:bg-emerald-400"
+          className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
           onClick={handleSave}
         >
           {hasExisting ? 'Save changes' : 'Add to radar'}

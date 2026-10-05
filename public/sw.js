@@ -4,7 +4,7 @@
  * No analytics. No background sync to any server (there is no server).
  */
 
-const CACHE = 'pocketveto-v1';
+const CACHE = 'pocketveto-v1.1';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {

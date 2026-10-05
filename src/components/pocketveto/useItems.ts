@@ -181,7 +181,9 @@ export function useItems(): ItemsState {
   }, []);
 
   const loadSample = useCallback(async () => {
-    const next = [...itemsRef.current, ...sampleItems()];
+    // Demo action: replace, never append — the sample set is the demo
+    // state, and stacking it (each load mints fresh ids) duplicates items.
+    const next = sampleItems();
     itemsRef.current = next;
     setItems(next);
     await saveAll(next);

@@ -3,6 +3,7 @@
 /**
  * PocketVeto — single-route entry.
  * Landing at `/`, app at `/#app` (bookmarkable, back-button friendly).
+ * Route swaps cross-fade rather than hard-cut.
  */
 
 import { useEffect, useState } from 'react';
@@ -35,21 +36,21 @@ export default function Home() {
     }
   }, []);
 
-  if (route === 'app') {
-    return (
-      <PocketVetoApp
-        onExit={() => {
-          window.location.hash = '';
-        }}
-      />
-    );
-  }
-
   return (
-    <Landing
-      onOpenApp={() => {
-        window.location.hash = 'app';
-      }}
-    />
+    <div key={route} className="pv-fade">
+      {route === 'app' ? (
+        <PocketVetoApp
+          onExit={() => {
+            window.location.hash = '';
+          }}
+        />
+      ) : (
+        <Landing
+          onOpenApp={() => {
+            window.location.hash = 'app';
+          }}
+        />
+      )}
+    </div>
   );
 }
