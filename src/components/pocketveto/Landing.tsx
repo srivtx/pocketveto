@@ -12,6 +12,7 @@ import { Bell, Calculator, HardDriveDownload, Radar, ScanLine, X, Crosshair } fr
 import { Button } from '@/components/ui/button';
 import { RadarChart } from './RadarChart';
 import { Logo } from './Logo';
+import { InstallButton } from './InstallButton';
 import { Reveal, useCountUp } from './motion';
 import type { ItemView } from '@/lib/pocketveto/types';
 
@@ -76,17 +77,17 @@ const FEATURES = [
   {
     icon: Radar,
     title: 'Every money date, one radar',
-    body: 'Free trials, subscriptions, memberships, warranties, gift cards, 0% APR windows, passports, IDs, domains — every date your money moves, plotted on one live radar. Blips close in as the day approaches.',
+    body: 'Free trials, subscriptions, memberships, warranties, gift cards, 0% APR windows, passports, IDs, domains — every date your money moves, plotted on one live radar. Paste a statement and the scanner finds your autopays for you.',
+  },
+  {
+    icon: ScanLine,
+    title: 'Autopay detection, without the bank link',
+    body: 'Paste a bank or card activity export and PocketVeto finds the charges that repeat — same merchant, steady rhythm — with cadence, next charge date and a confidence score. One tap turns each into a tracked date. The text never leaves your device.',
   },
   {
     icon: Crosshair,
     title: 'A $-at-risk ticker, not a budget',
     body: 'PocketVeto shows what you are about to LOSE: a live sum of the money at stake across all your dates, annualized run-rate of what renews, and what fires within 7 days. Losses hurt about twice as much as gains feel good — we count the losses.',
-  },
-  {
-    icon: ScanLine,
-    title: 'Playbooks, not just reminders',
-    body: 'Every item ships with an action playbook: durable cancellation paths for popular services, warranty-claim checklists, gift-card redemption steps, a ready-to-send cancellation email, and the deferred-interest payoff math. A reminder you can\u2019t act on is just anxiety.',
   },
   {
     icon: Calculator,
@@ -113,10 +114,6 @@ const ABSENCES = [
   'No push vendor reading your dates',
 ];
 
-function scrollToProblem() {
-  document.getElementById('problem')?.scrollIntoView({ behavior: 'smooth' });
-}
-
 function Stat({ stat, delay }: { stat: (typeof STATS)[number]; delay: number }) {
   const n = useCountUp(stat.value, 1100);
   return (
@@ -140,7 +137,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
             <Logo className="h-8 w-8 text-signal-400" />
             <span className="font-display text-lg font-semibold tracking-tight">PocketVeto</span>
             <span className="pv-num hidden rounded-full border border-ink-800 px-2 py-0.5 text-[10px] text-mist-400 sm:block">
-              v1.1
+              v1.2
             </span>
           </div>
           <nav className="hidden items-center gap-7 text-sm text-mist-400 md:flex" aria-label="Sections">
@@ -156,13 +153,18 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
               GitHub
             </a>
           </nav>
-          <Button
-            onClick={onOpenApp}
-            size="sm"
-            className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
-          >
-            Open the app
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:block">
+              <InstallButton size="sm" />
+            </div>
+            <Button
+              onClick={onOpenApp}
+              size="sm"
+              className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
+            >
+              Open the app
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -203,14 +205,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
                   >
                     Start tracking — it&apos;s free
                   </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="h-12 border-ink-800 bg-transparent px-6 text-base text-mist-300 hover:border-ink-700 hover:bg-ink-900 hover:text-mist-100"
-                    onClick={scrollToProblem}
-                  >
-                    Why this exists
-                  </Button>
+                  <InstallButton size="lg" />
                 </div>
               </Reveal>
               <Reveal delay={280}>
@@ -348,8 +343,8 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
             {[
               {
                 n: '1',
-                t: 'Add the date',
-                b: 'Name it, pick the kind, set the date and what it costs you if it fires. Popular services pre-fill their cancel paths. No bank, no email, no account.',
+                t: 'Add the date — or don&apos;t',
+                b: 'Name it, pick the kind, set the date and what it costs you if it fires. Or paste a bank/card statement and let the scanner find your autopays for you. No bank, no email, no account.',
               },
               {
                 n: '2',
@@ -401,8 +396,10 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
                   <p>
                     PocketVeto has no accounts, no analytics, no bank linkage and no server.
                     Your items are stored in your own browser storage (IndexedDB) and every
-                    byte stays on your device. The app works fully offline once installed —
-                    because there is nowhere for it to phone home to.
+                    byte stays on your device — including any statement text you scan: the
+                    autopay detector runs locally, so the paste never leaves your browser.
+                    The app works fully offline once installed — because there is nowhere for
+                    it to phone home to.
                   </p>
                   <p>
                     Moving devices? Use Export to get a plain JSON file and Import it anywhere.

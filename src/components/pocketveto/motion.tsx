@@ -75,10 +75,24 @@ export function useCountUp(target: number, duration = 750): number {
 
 /**
  * Reveals children with a rise the first time they scroll into view.
- * Visibility is derived: shown once the observer fires, immediately when
- * motion is reduced, or immediately when IntersectionObserver is
- * unavailable.
+ *
+ * Hydration contract: the server has no IntersectionObserver, so it renders
+ * everything shown. The client's first (hydration) render must agree —
+ * IO availability is therefore read through useSyncExternalStore, which
+ * serves the server snapshot during hydration and only switches to the
+ * real client value after mount. No attributes diverge; nothing flickers
+ * (the reveal animation starts from opacity 0 anyway).
  */
+const subscribeNoop = (): (() => void) => () => undefined;
+
+function useIntersectionObserverAvailable(): boolean {
+  return useSyncExternalStore(
+    subscribeNoop,
+    () => typeof IntersectionObserver !== 'undefined',
+    () => false
+  );
+}
+
 export function Reveal({
   children,
   delay = 0,
@@ -93,9 +107,10 @@ export function Reveal({
   const ref = useRef<HTMLDivElement | null>(null);
   const [observed, setObserved] = useState(false);
   const reduced = usePrefersReducedMotion();
+  const hasIO = useIntersectionObserverAvailable();
 
   useEffect(() => {
-    if (reduced || typeof IntersectionObserver === 'undefined') return;
+    if (reduced || !hasIO) return;
     const el = ref.current;
     if (!el) return;
     const io = new IntersectionObserver(
@@ -109,9 +124,9 @@ export function Reveal({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [reduced]);
+  }, [reduced, hasIO]);
 
-  const shown = observed || reduced || typeof IntersectionObserver === 'undefined';
+  const shown = observed || reduced || !hasIO;
 
   return (
     <div

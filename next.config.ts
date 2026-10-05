@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  // The sandbox preview proxies /_next/* from its own host; allow it in dev.
+  allowedDevOrigins: ["*.space-z.ai", "localhost"],
 };
 
 export default nextConfig;

@@ -3,6 +3,51 @@
 All notable changes to PocketVeto are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver.
 
+## [1.2.0] — 2026-10-05
+
+Autopay scan, install experience, and a hard fix to the two bugs that
+mattered: the hydration failure on every PWA launch, and the edit dialog
+rendering transparent.
+
+### Fixed
+- **Hydration failure on `/#app`** (the PWA start URL — every installed
+  launch hit it): the route state is now deterministic for the first
+  paint and syncs from the hash in a pre-paint layout effect. A second,
+  attribute-level mismatch (scroll-reveal `style` diverging between
+  server and client) is fixed by reading IntersectionObserver
+  availability through `useSyncExternalStore`.
+- **Edit dialog transparency**: raised the dialog to a solid `ink-900`
+  panel with a deeper scrim, and turned form fields into dark inset
+  wells so writing reads clearly. (Found while reproducing: the dev
+  server had been serving a stale CSS chunk — the entire token palette
+  was missing in the previous session's screenshots; a clean restart
+  plus the new explicit surface classes make the dialog solid on any
+  compile.)
+- `next.config.ts` now allows the sandbox preview origin
+  (`allowedDevOrigins`) to silence dev cross-origin noise.
+
+### Added
+- **Autopay scan** (`src/lib/pocketveto/scan.ts` + Scan tab): paste or
+  upload a bank/card activity export (CSV or text); the on-device
+  detector parses dated charges, normalizes merchant noise, fits
+  weekly/biweekly/monthly/quarterly/annual cadences, scores confidence,
+  estimates the next charge date, recognizes ~30 brands (playbook
+  attached), and converts findings to tracked items in one tap. 15 new
+  unit tests (41 total).
+- **Install experience**: `useInstallPrompt` + Install button on the
+  landing and app headers — uses the browser's `beforeinstallprompt`
+  when available, tells the honest Share → Add to Home Screen path on
+  iOS.
+- New brand mark ("the intercept"): radar ring, veto slash, charge
+  caught at the boundary — in-app (currentColor) and as regenerated
+  PWA icons (192/512/maskable) via `scripts/gen-icons.mjs`.
+- README rewritten concise: new screenshots (no dev badge), badges,
+  autopay-scan section with the honest platform note.
+
+### Changed
+- Service worker cache bumped to `pocketveto-v1.2`; version 1.2.0
+  in-app and in `package.json`.
+
 ## [1.1.0] — 2026-10-05
 
 Design-system pass, unslop, and dependency hygiene. Same tested core;

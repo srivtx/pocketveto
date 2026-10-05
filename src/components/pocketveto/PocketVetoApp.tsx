@@ -18,6 +18,7 @@ import {
   PiggyBank,
   Plus,
   Radar as RadarIcon,
+  ScanLine,
   Settings2,
   X,
 } from 'lucide-react';
@@ -39,17 +40,21 @@ import { SavedView, SettingsView } from './SavedSettings';
 import { ItemDialog } from './ItemDialog';
 import { KindGlyph } from './KindGlyph';
 import { Logo } from './Logo';
+import { ScanView } from './ScanView';
+import { InstallButton } from './InstallButton';
 import { useCountUp } from './motion';
+import { toast } from '@/hooks/use-toast';
 import { formatMoney } from '@/lib/pocketveto/risk';
 import { countdownLabel } from '@/lib/pocketveto/dates';
 import { KIND_META, type ItemStatus, type MoneyDateItem, type ItemView } from '@/lib/pocketveto/types';
 import { permissionState, requestPermission } from '@/lib/pocketveto/notifications';
 
-type Tab = 'radar' | 'items' | 'saved' | 'settings';
+type Tab = 'radar' | 'items' | 'scan' | 'saved' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: typeof RadarIcon }[] = [
   { id: 'radar', label: 'Radar', icon: RadarIcon },
   { id: 'items', label: 'Items', icon: ListChecks },
+  { id: 'scan', label: 'Scan', icon: ScanLine },
   { id: 'saved', label: 'Saved', icon: PiggyBank },
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ];
@@ -159,6 +164,9 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
             )}
           </div>
 
+          <div className="hidden items-center gap-2 sm:flex">
+            <InstallButton size="sm" />
+          </div>
           <Button
             onClick={openAdd}
             size="sm"
@@ -382,12 +390,19 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
                       Your radar is empty. Add the subscription you keep forgetting, or load a
                       sample set to see how this works.
                     </p>
-                    <div className="mt-5 flex justify-center gap-2">
+                    <div className="mt-5 flex flex-wrap justify-center gap-2">
                       <Button
                         className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
                         onClick={openAdd}
                       >
                         <Plus className="h-4 w-4" aria-hidden /> Add first date
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-ink-700 hover:bg-ink-900"
+                        onClick={() => setTab('scan')}
+                      >
+                        <ScanLine className="h-4 w-4" aria-hidden /> Scan a statement
                       </Button>
                       <Button
                         variant="outline"
@@ -412,6 +427,19 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
             />
           )}
 
+          {tab === 'scan' && (
+            <ScanView
+              items={state.items}
+              onTrack={(draft) => {
+                void state.addItem(draft);
+                toast({
+                  title: 'On your radar',
+                  description: `${draft.name} is being tracked — you'll get T-7, T-2 and day-of alerts.`,
+                });
+              }}
+            />
+          )}
+
           {tab === 'saved' && <SavedView items={state.items} />}
 
           {tab === 'settings' && (
@@ -430,7 +458,7 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-mist-500">
           <p className="flex items-center gap-2">
             <Logo className="h-4 w-4 text-mist-500" />
-            PocketVeto v1.1.0 — local-first. Nothing leaves this device.
+            PocketVeto v1.2.0 — local-first. Nothing leaves this device.
           </p>
           <div className="flex gap-4">
             <a

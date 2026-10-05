@@ -101,7 +101,9 @@ function draftFrom(item?: MoneyDateItem | null): ItemDraft {
   };
 }
 
-const inputCls = 'border-ink-800 bg-ink-900 text-mist-100 placeholder:text-mist-500/60 focus-visible:ring-signal-400/50';
+/* Fields are inset wells (ink-950) so they read clearly against the
+   raised ink-900 dialog panel — the edit surface must feel solid. */
+const inputCls = 'border-ink-800 bg-ink-950 text-mist-100 placeholder:text-mist-500/60 focus-visible:ring-signal-400/50';
 
 export function ItemDialog({
   open,
@@ -118,7 +120,7 @@ export function ItemDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[88vh] overflow-y-auto border-ink-800 bg-ink-925 sm:max-w-lg">
+      <DialogContent className="max-h-[88vh] overflow-y-auto border-ink-800 bg-ink-900 shadow-2xl shadow-black/60 sm:max-w-lg">
         <ItemForm
           key={`${open}-${editing?.id ?? 'new'}`}
           initial={draftFrom(editing)}
@@ -217,7 +219,7 @@ function ItemForm({
             <SelectTrigger id="pv-kind" className={inputCls}>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="border-ink-800 bg-ink-925">
+            <SelectContent className="border-ink-800 bg-ink-900 shadow-2xl shadow-black/60">
               {KIND_ORDER.map((k) => (
                 <SelectItem key={k} value={k} className="text-mist-100 focus:bg-ink-850 focus:text-mist-100">
                   <span className="flex items-center gap-2">
@@ -328,7 +330,7 @@ function ItemForm({
               <SelectTrigger id="pv-rec" className={inputCls}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-ink-800 bg-ink-925">
+              <SelectContent className="border-ink-800 bg-ink-900 shadow-2xl shadow-black/60">
                 <SelectItem value="once" className="text-mist-100 focus:bg-ink-850 focus:text-mist-100">One-time</SelectItem>
                 <SelectItem value="monthly" className="text-mist-100 focus:bg-ink-850 focus:text-mist-100">Monthly</SelectItem>
                 <SelectItem value="annual" className="text-mist-100 focus:bg-ink-850 focus:text-mist-100">Annual</SelectItem>
@@ -374,7 +376,7 @@ function ItemForm({
             value={draft.notes}
             onChange={(e) => set('notes', e.target.value)}
             placeholder="Order number, where the receipt lives, who to call…"
-            className="min-h-[70px] border-ink-800 bg-ink-900 text-mist-100 placeholder:text-mist-500/60 focus-visible:ring-signal-400/50"
+            className="min-h-[70px] border-ink-800 bg-ink-950 text-mist-100 placeholder:text-mist-500/60 focus-visible:ring-signal-400/50"
           />
         </div>
 

@@ -1,8 +1,9 @@
 /**
- * PocketVeto — brand mark.
+ * PocketVeto — brand mark: the intercept.
  *
- * A radar in a tile: two range rings, one sweep, one blip, center = now.
- * Rendered from currentColor so it inherits signal/mist contextually.
+ * A radar ring with a decisive slash through it — the veto — and a blip
+ * caught exactly where the slash meets the ring: the charge, intercepted
+ * at the boundary. Rendered from currentColor so it inherits context.
  */
 
 export function Logo({ className = 'h-8 w-8' }: { className?: string }) {
@@ -14,6 +15,7 @@ export function Logo({ className = 'h-8 w-8' }: { className?: string }) {
       role="img"
       aria-label="PocketVeto"
     >
+      {/* tile */}
       <rect
         x="1.25"
         y="1.25"
@@ -21,20 +23,24 @@ export function Logo({ className = 'h-8 w-8' }: { className?: string }) {
         height="29.5"
         rx="8"
         stroke="currentColor"
-        strokeOpacity="0.35"
+        strokeOpacity="0.32"
         strokeWidth="1.5"
       />
-      <circle cx="16" cy="16" r="10.5" stroke="currentColor" strokeOpacity="0.3" strokeWidth="1.5" />
-      <circle cx="16" cy="16" r="5.75" stroke="currentColor" strokeOpacity="0.5" strokeWidth="1.5" />
-      <path
-        d="M16 16 L26 16"
+      {/* radar rings */}
+      <circle cx="16" cy="16" r="10.5" stroke="currentColor" strokeOpacity="0.5" strokeWidth="1.75" />
+      <circle cx="16" cy="16" r="5.75" stroke="currentColor" strokeOpacity="0.32" strokeWidth="1.5" />
+      {/* the veto — the boldest stroke in the mark */}
+      <line
+        x1="8.6"
+        y1="23.4"
+        x2="23.4"
+        y2="8.6"
         stroke="currentColor"
-        strokeOpacity="0.85"
-        strokeWidth="1.75"
+        strokeWidth="2.5"
         strokeLinecap="round"
       />
-      <circle cx="16" cy="16" r="2" fill="currentColor" />
-      <circle cx="21" cy="11" r="2.1" fill="currentColor" />
+      {/* the charge, caught at the ring */}
+      <circle cx="23.4" cy="8.6" r="2.2" fill="currentColor" />
     </svg>
   );
 }

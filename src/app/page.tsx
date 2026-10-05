@@ -4,20 +4,33 @@
  * PocketVeto — single-route entry.
  * Landing at `/`, app at `/#app` (bookmarkable, back-button friendly).
  * Route swaps cross-fade rather than hard-cut.
+ *
+ * Hydration contract: the server can never see the URL hash, so the first
+ * client render MUST also render the landing (deterministic initial state).
+ * The hash is read afterwards in a layout effect — it fires before the
+ * browser paints, so `/#app` visitors (the PWA start URL) go straight to
+ * the app with no visible flash and no hydration mismatch.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Landing } from '@/components/pocketveto/Landing';
 import { PocketVetoApp } from '@/components/pocketveto/PocketVetoApp';
+
+/** Layout effect on the client, plain effect during SSR (no server warning). */
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 function isAppHash(): boolean {
   return typeof window !== 'undefined' && window.location.hash === '#app';
 }
 
 export default function Home() {
-  const [route, setRoute] = useState<'landing' | 'app'>(() =>
-    isAppHash() ? 'app' : 'landing'
-  );
+  // Deterministic: always 'landing' for the hydration pass.
+  const [route, setRoute] = useState<'landing' | 'app'>('landing');
+
+  // Post-hydration sync — runs before first paint, so no landing flash.
+  useIsoLayoutEffect(() => {
+    if (isAppHash()) setRoute('app');
+  }, []);
 
   useEffect(() => {
     const onHash = () => {
