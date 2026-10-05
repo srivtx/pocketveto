@@ -1,6 +1,6 @@
 {
   "name": "pocketveto",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Your veto before the charge posts \u2014 the local-first radar for every date your money moves. No account, no bank link, no server.",
   "private": true,
   "scripts": {
@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "icons": "bun scripts/gen-icons.mjs"
+    "icons": "bun scripts/gen-icons.mjs",
+    "build:static": "NEXT_STATIC=1 next build"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.11",

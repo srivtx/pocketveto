@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Plain platform theme (no AndroidX appcompat needed for a lone
+         WebView): dark by default, ink background so launch shows no
+         white flash before the web layer paints. -->
+    <style name="Theme.PocketVeto" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/pv_ink</item>
+        <item name="android:statusBarColor">@color/pv_ink_deep</item>
+        <item name="android:navigationBarColor">@color/pv_ink_deep</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

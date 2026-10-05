@@ -1,75 +1,96 @@
-# Auto-detecting payments — the honest map
+# Autopay detection — the honest ladder
 
-Where each detection path works, what it costs, and what it can never do.
-This is the research behind the roadmap's detection ladder, kept current as
-rungs ship.
+How PocketVeto finds the charges you forgot. Every rung is graded on
+what it can actually read, not what marketing wishes it could.
 
-## Why a web app cannot just read your payments
+## Where we are (v1.4.0)
 
-A browser (and therefore a PWA) is sandboxed away from the OS on purpose:
-no reading other apps' notifications, no SMS inbox, no transaction feed
-from GPay, PhonePe, or Apple Wallet. That boundary is a feature — every
-app that promises "automatic detection" from a browser is either reading
-something you pasted, or asking for a server-side connection you granted.
-There is no adapter API for PhonePe/GPay/Apple Pay consumer transactions
-that a third-party web app may call. Detection therefore comes from one
-of four places, in this order:
-
-## The ladder
-
-| Rung | What | Status |
+| Rung | Channel | Status |
 |---|---|---|
-| 1 | **Share Target** — from any app (SMS, GPay/PhonePe notification, receipt email), tap Share → PocketVeto. The text is parsed on-device: ₹/Rs/INR/$ amounts, DD-MM-YY bank-SMS dates, payee extraction, promo/OTP lines rejected. | **Shipped (v1.3)** |
-| 2 | **Inbox scan adapter** — opt-in Gmail connection (OAuth, your own scope-limited token) that reads receipt/renewal emails from known senders and proposes items. Runs against your own Supabase backend — the same adapter boundary the store layer already defines. | Roadmap |
-| 3 | **Android companion — NotificationListenerService** — the real "add it automatically": a thin native layer that watches payment notifications, parses them with the same `scan.ts` engine rules, and hands them to PocketVeto (local intent/deep link, no cloud). Requires the user to grant Notification access in system settings; data never leaves the device. | Roadmap |
-| 4 | **Bank aggregation** — Plaid (US/EU), the RBI's **Account Aggregator** framework (India — consent-based, via licensed AAs/Setu), TrueLayer (UK/EU). Full transaction feeds, opt-in, each with its own compliance overhead. | Later |
+| 1 | **Share** — share a payment SMS/notification into the installed PWA (Android) | shipped |
+| 2 | **Paste** — bank/card statement text or CSV, parsed on-device | shipped |
+| 3 | **Android app** — notification listener + optional bank-SMS receiver capture payments automatically | **shipped** (`android/`, APK from Releases) |
+| 4 | Inbox adapter — opt-in Gmail receipt scan | designed, not built |
+| 5 | Bank aggregation — India AA (Setu/Finvu) or Plaid-style open banking | research only |
 
-Rung 3 is what "detect the autopay when I pay" fully means on Android. It
-needs a native wrapper — see below. On iOS, rung 3 does not exist for
-third parties; share-sheet and paste are the honest ceiling.
+Rung 3 is the one people actually want: install the APK, flip one switch
+(*Notification access* in system settings), optionally allow bank SMS —
+and every PhonePe/GPay/Paytm/bank payment notification lands in the Scan
+tab as a ready-to-track card. The native side captures **raw text
+only**; parsing (amounts, payees, dates, cadence, promo/OTP rejection)
+runs in the same tested detector as the web flows, entirely on-device.
 
-## Can we make an Android app? Yes — three ways
+## Why the web alone can't do it
 
-| Path | What it is | Gets us | Cost |
+A browser tab — installed PWA included — is sandboxed away from other
+apps' notifications and SMS by the OS, on purpose. There is no web API,
+no permission prompt, and no adapter (Plaid, TrueLayer and friends are
+*bank* aggregation products; none of them expose PhonePe/GPay wallet
+activity to third parties). Anyone claiming a web app can read your
+notifications is lying. The share sheet was always a bridge, not the
+destination — the destination needed native code.
+
+## The wrapper decision, honestly
+
+Three ways to put a web app on Android, and why v1.4 chose the third:
+
+| | TWA (Bubblewrap) | Capacitor | Bare Kotlin WebView (chosen) |
 |---|---|---|---|
-| **Trusted Web Activity (TWA)** | The existing PWA wrapped with Bubblewrap; Play Store lists it, Chrome renders it fullscreen. | Store presence, zero new code, same update pipeline | ~an afternoon; no notification access |
-| **Capacitor** | The same web app in a native shell with a plugin bridge. | NotificationListenerService as a plugin → rung 3 becomes real | A small Kotlin plugin + build tooling; Play review for the permission disclosure |
-| **Full Kotlin** | A native rewrite. | Everything | Weeks; duplicates the product |
+| Play Store listing | yes | yes | later, as a second track |
+| Native APIs (notification listener) | no — Chrome renders the site; no service code | via plugins — but no maintained plugin exposes NotificationListenerService | direct |
+| Bundled offline assets | no — needs a hosted URL | yes | yes (`assets/web`, no network at all) |
+| App weight / moving parts | Chrome dependency | npm-native toolchain + bridge layer | ~1.6 MB web export + one small Kotlin shell |
+| F-Droid / Obtainium friendly | n/a | yes | yes |
 
-**The plan:** ship the TWA now for presence (nothing about the PWA
-changes — same URL, same offline shell); move to Capacitor when the
-notification listener is built. The listener runs as a foreground-aware
-service that: matches notifications against payment patterns (the same
-verb/amount/payee grammar `parsePaymentText` owns), dedupes, and opens
-PocketVeto with the parsed payload as a deep link — the user confirms
-the track, nothing is uploaded. If the notification grammar fails, fall
-back to asking the user to share the text manually (rung 1).
+The APK's web layer is served through `WebViewAssetLoader` on a virtual
+https origin, so IndexedDB and the whole app behave exactly like on the
+web — and there is no server to phone home to, by construction.
 
-## Play policy notes (checked 2026-10)
+## Sideload reality (2025–26)
 
-- **SMS / Call Log permission groups are restricted**: only
-  default-handler use cases (dialer, SMS apps) pass review. A
-  PocketVeto that reads the SMS inbox directly would be rejected — which
-  is fine: the notification path (and the share sheet) need none of it.
-- **NotificationListenerService** is *special app access*, not a
-  runtime permission: the user flips it on in system settings, and Play
-  review requires a clear disclosure + privacy policy for apps that
-  read notifications. Financial-data handling rules apply.
-- **TWA/Capacitor** both pass the standard app review; the listener
-  disclosure is the only sensitive part.
+Google is tightening sideloading: newer Android versions add extra
+warning steps for apps outside Play, and advanced-protection users can
+be blocked outright. What that means here:
 
-## The Apple side (honest)
+- The APK is built by public CI from this repository — reproducible,
+  source-auditable, signed with the committed sideload key.
+- At install, choose **"Scan app"** when Play Protect asks — it is a
+  genuinely good idea for any APK.
+- For updates without Play: **Obtainium** (FOSS) tracks GitHub Releases
+  and updates this app in one tap — the recommended install path.
+- If Play distribution ever matters more than the SMS permission, the
+  TWA track (rung-3-free, share/paste only) is the Play-safe subset.
 
-There is no public API for a third-party app to read Apple Wallet /
-Apple Pay transaction history. Wallet's order tracking is merchant-side.
-So on iOS: Share sheet → PocketVeto (Safari's Add to Home Screen app
-supports share targets), or paste. That is the platform's ceiling, and
-it is stated in the app rather than papered over.
+## Rung 4 — inbox adapter (designed)
+
+Gmail's API with a `gmail.readonly` scope can find receipts (Google
+Play, App Store, Stripe, PayPal, Swiggy, …). It needs a registered
+OAuth client, so it ships as *bring-your-own* — your client ID, your
+backend (a tiny Supabase function is enough), your data. The store
+layer is already the adapter boundary for this.
+
+## Rung 5 — bank aggregation (research)
+
+India's Account Aggregator framework (Sahamati; Setu, Finvu, FinBox…)
+is the compliant path to real bank transactions — consented, revoked
+per-account, auditable. It requires a licensed entity relationship and
+a server, which puts it in direct tension with local-first. If it ever
+ships, it ships as an explicit opt-in adapter, never as a login wall.
+
+## Non-goals
+
+- Reading Apple Pay / Wallet transactions — Apple exposes nothing to
+  third parties; the iOS ceiling is share-sheet + paste.
+- Scraping UPI apps — no public API exists; scraping private app
+  internals is fragile and hostile to users.
 
 ## Sources
 
-- Android `NotificationListenerService` (API 18+) — developer.android.com
-- Google Play Console policy: Use of SMS or Call Log permission groups
-- Web Share Target — Chrome 89+ (developer.chrome.com/docs/web-platform/web-share-target)
-- Account Aggregator framework — Sahamati (sahamati.org.in), Setu
-- Bubblewrap (TWA packaging) / Capacitor docs
+- NotificationListenerService — Android API docs (API 18+), special
+  app access; payment-tracker usage is the established pattern.
+- Play policy: SMS/Call-Log permissions restricted to default handlers
+  (Google Play Policy Center) — the reason rung 3 ships as a sideload.
+- Sideload tightening 2025–26: Google unverified-app blocking (Aug
+  2025), new multi-step sideload flow (Android Authority, Mar 2026).
+- TWA: developer.android.com / developer.chrome.com overviews.
+- India AA: Sahamati ecosystem, Setu/Finvu docs, FOLO funding (2025).

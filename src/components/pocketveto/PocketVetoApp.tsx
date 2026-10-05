@@ -43,6 +43,7 @@ import { Logo } from './Logo';
 import { ScanView } from './ScanView';
 import { InstallButton } from './InstallButton';
 import { useCountUp } from './motion';
+import { useNativeStatus } from '@/lib/pocketveto/native';
 import { toast } from '@/hooks/use-toast';
 import { formatMoney } from '@/lib/pocketveto/risk';
 import { countdownLabel } from '@/lib/pocketveto/dates';
@@ -68,6 +69,7 @@ export function PocketVetoApp({
   sharedText?: string;
 }) {
   const state = useItems();
+  const native = useNativeStatus();
   const [tab, setTab] = useState<Tab>(sharedText ? 'scan' : 'radar');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MoneyDateItem | null>(null);
@@ -78,6 +80,29 @@ export function PocketVetoApp({
 
   const atRiskDisplay = useCountUp(state.atRisk);
   const runRateDisplay = useCountUp(state.runRate);
+
+  /* Inside the Android shell: when captures are waiting, the scan tab
+     is where the money is — route there once per arrival (async gap,
+     same client-only-data shape as the store load). */
+  const routedToCaptures = useRef(false);
+  useEffect(() => {
+    if (!native.available || native.pendingCount === 0) return;
+    if (routedToCaptures.current) return;
+    routedToCaptures.current = true;
+    let alive = true;
+    (async () => {
+      await Promise.resolve();
+      if (!alive) return;
+      setTab((t) => (t === 'radar' ? 'scan' : t));
+      toast({
+        title: 'Payments captured',
+        description: `${native.pendingCount} payment notification${native.pendingCount === 1 ? '' : 's'} from your phone waiting in Scan.`,
+      });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [native.available, native.pendingCount]);
 
   const lapsed = useMemo(
     () => state.views.filter((v) => v.lapsedCycles > 0),
@@ -193,8 +218,9 @@ export function PocketVetoApp({
           </Button>
         </div>
 
-        {/* Tabs */}
-        <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4" aria-label="App sections">
+        {/* Tabs — under 420px the labels yield to icons so all five fit;
+            the nav is the indicator's positioning context (clips + scrolls with it) */}
+        <nav className="relative mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4" aria-label="App sections">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -202,6 +228,7 @@ export function PocketVetoApp({
                 tabRefs.current[t.id] = el;
               }}
               type="button"
+              aria-label={t.label}
               onClick={() => setTab(t.id)}
               className={`relative flex shrink-0 items-center gap-1.5 px-3 py-2.5 text-sm transition-colors duration-200 ${
                 tab === t.id ? 'text-mist-100' : 'text-mist-500 hover:text-mist-300'
@@ -209,7 +236,7 @@ export function PocketVetoApp({
               aria-current={tab === t.id ? 'page' : undefined}
             >
               <t.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-              {t.label}
+              <span className="max-[420px]:sr-only">{t.label}</span>
               {t.id === 'saved' && state.saved > 0 && (
                 <span className="pv-num rounded-full bg-signal-400/15 px-1.5 text-[10px] font-semibold text-signal-400">
                   {state.items.filter((i) => i.status === 'vetoed' || i.status === 'used').length}
@@ -449,6 +476,7 @@ export function PocketVetoApp({
               items={state.items}
               initialText={sharedText}
               autoScan={Boolean(sharedText)}
+              native={native}
               onAddSingle={openPrefilled}
               onTrack={(draft) => {
                 void state.addItem(draft);
@@ -478,7 +506,7 @@ export function PocketVetoApp({
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-mist-500">
           <p className="flex items-center gap-2">
             <Logo className="h-4 w-4 text-mist-500" />
-            PocketVeto v1.3.0 — local-first. Nothing leaves this device.
+            PocketVeto v1.4.0 — local-first. Nothing leaves this device.
           </p>
           <div className="flex gap-4">
             <a

@@ -172,6 +172,110 @@ function Stat({ stat, delay }: { stat: (typeof STATS)[number]; delay: number }) 
   );
 }
 
+/** SweepBand — the footer's only decoration, the customs-style crafted
+ * edge in PocketVeto's language: one signal hairline passing under the
+ * content, fading at both ends, with three hand-placed blips — the last
+ * one cliff-red, a charge caught at the line. Static paint, tokens only. */
+function SweepBand() {
+  return (
+    <div className="relative h-6" aria-hidden>
+      <svg viewBox="0 0 1600 24" preserveAspectRatio="none" className="absolute inset-0 h-full w-full text-signal-400">
+        <defs>
+          <linearGradient id="ft-sweep" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="currentColor" stopOpacity="0" />
+            <stop offset="0.5" stopColor="currentColor" stopOpacity="0.45" />
+            <stop offset="1" stopColor="currentColor" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <line x1="0" y1="12" x2="1600" y2="12" stroke="url(#ft-sweep)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        <circle cx="412" cy="12" r="2.5" fill="currentColor" opacity="0.4" />
+        <circle cx="984" cy="12" r="3.5" fill="currentColor" opacity="0.7" />
+        <circle cx="1318" cy="12" r="2.5" fill="#ff6367" opacity="0.6" />
+      </svg>
+    </div>
+  );
+}
+
+/** Footer — customs-clean: a brand column (mark, one © line, the source
+ * pill), quiet link columns, and a single honest line at the bottom.
+ * A footer says where things are; it does not repeat the site. */
+function Footer({ onOpenApp }: { onOpenApp: () => void }) {
+  return (
+    <footer className="mt-auto">
+      <SweepBand />
+      <div className="mx-auto w-full max-w-6xl px-5 pb-10 pt-8 sm:px-8">
+        <div className="flex flex-col gap-10 lg:flex-row lg:gap-16">
+          {/* brand column */}
+          <div className="flex shrink-0 flex-col lg:w-[240px]">
+            <div className="flex items-center gap-2.5">
+              <Logo className="h-6 w-6 text-signal-400" />
+              <span className="font-display text-[15px] font-semibold leading-none tracking-tight">
+                PocketVeto
+              </span>
+            </div>
+            <p className="mt-4 text-[11px] leading-relaxed text-mist-500">
+              © 2026 PocketVeto · MIT
+              <br />
+              An organizational tool, not financial advice.
+            </p>
+            <div className="mt-5 lg:mt-auto lg:pt-6">
+              <a
+                href="https://github.com/srivtx/pocketveto"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-ink-800 py-1.5 pl-2.5 pr-3 text-[11px] font-medium text-mist-500 transition-colors hover:border-ink-700 hover:text-mist-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-400"
+              >
+                <svg aria-hidden className="size-3.5" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+                </svg>
+                srivtx/pocketveto
+              </a>
+            </div>
+          </div>
+
+          {/* quiet link columns */}
+          <nav className="flex flex-1 flex-wrap gap-x-14 gap-y-8" aria-label="footer">
+            <div className="flex flex-col">
+              <span className="mb-1.5 text-[13px] font-medium text-mist-300">Product</span>
+              <div className="flex flex-col items-start gap-1">
+                <button type="button" onClick={onOpenApp} className="text-[13px] leading-relaxed text-mist-500 transition-colors hover:text-mist-100">Open the app</button>
+                <button type="button" onClick={() => scrollToSection('problem')} className="text-[13px] leading-relaxed text-mist-500 transition-colors hover:text-mist-100">The problem</button>
+                <button type="button" onClick={() => scrollToSection('features')} className="text-[13px] leading-relaxed text-mist-500 transition-colors hover:text-mist-100">Features</button>
+                <button type="button" onClick={() => scrollToSection('privacy')} className="text-[13px] leading-relaxed text-mist-500 transition-colors hover:text-mist-100">Privacy</button>
+              </div>
+            </div>
+
+            <div className="flex flex-col">
+              <span className="mb-1.5 text-[13px] font-medium text-mist-300">Source</span>
+              <div className="flex flex-col items-start gap-1">
+                <a href="https://github.com/srivtx/pocketveto/issues" target="_blank" rel="noreferrer" className="text-[13px] leading-relaxed text-mist-500 transition-colors hover:text-mist-100">Issues</a>
+                <a href="https://github.com/srivtx/pocketveto/blob/main/CONTRIBUTING.md" target="_blank" rel="noreferrer" className="text-[13px] leading-relaxed text-mist-500 transition-colors hover:text-mist-100">Contributing</a>
+                <a href="https://github.com/srivtx/pocketveto/blob/main/CHANGELOG.md" target="_blank" rel="noreferrer" className="text-[13px] leading-relaxed text-mist-500 transition-colors hover:text-mist-100">Changelog</a>
+                <a href="https://github.com/srivtx/pocketveto/releases" target="_blank" rel="noreferrer" className="text-[13px] leading-relaxed text-mist-500 transition-colors hover:text-mist-100">Android APK</a>
+              </div>
+            </div>
+
+            <div className="flex flex-col">
+              <span className="mb-1.5 text-[13px] font-medium text-mist-300">Principles</span>
+              <div className="flex flex-col items-start gap-1">
+                <span className="text-[13px] leading-relaxed text-mist-500">No bank credentials, ever</span>
+                <span className="text-[13px] leading-relaxed text-mist-500">No analytics or telemetry</span>
+                <span className="text-[13px] leading-relaxed text-mist-500">Plain-JSON export, yours to keep</span>
+              </div>
+            </div>
+          </nav>
+        </div>
+
+        <div className="mt-10 border-t border-ink-800/70 pt-5">
+          <p className="pv-num text-[11px] text-mist-500">
+            No account · No bank link · No server — local-first by architecture, not policy
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
   return (
     <div className="flex min-h-screen flex-col bg-ink-950 text-mist-100">
@@ -182,7 +286,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
             <Logo className="h-8 w-8 text-signal-400" />
             <span className="font-display text-lg font-semibold tracking-tight">PocketVeto</span>
             <span className="pv-num hidden rounded-full border border-ink-800 px-2 py-0.5 text-[10px] text-mist-400 sm:block">
-              v1.3
+              v1.4
             </span>
           </div>
           <nav className="hidden items-center gap-7 text-sm text-mist-400 md:flex" aria-label="Sections">
@@ -224,7 +328,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
         {/* Hero */}
         <section className="relative overflow-hidden">
           <div className="pv-grid pv-grid-fade absolute inset-0" aria-hidden />
-          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 md:grid-cols-[1.1fr_0.9fr] md:py-24">
+          <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-4 py-16 md:grid-cols-[1.1fr_0.9fr] md:py-24">
             <div>
               <Reveal>
                 <p className="pv-label mb-5 flex items-center gap-2">
@@ -364,7 +468,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
                 One radar. Every date your money moves.
               </h2>
             </Reveal>
-            <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-ink-800 bg-ink-800 md:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-ink-800 bg-ink-800 md:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map((f, i) => (
                 <Reveal key={f.title} delay={(i % 3) * 80} className="h-full">
                   <div className="group flex h-full flex-col bg-ink-950 p-7 transition-colors duration-300 hover:bg-ink-925">
@@ -391,7 +495,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
               Three steps, two minutes
             </h2>
           </Reveal>
-          <div className="mt-12 grid gap-10 md:grid-cols-3 md:gap-6">
+          <div className="mt-12 grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-6">
             {[
               {
                 n: '1',
@@ -435,7 +539,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
 
         {/* Privacy */}
         <section id="privacy" className="border-t border-ink-800/70 bg-ink-925/40">
-          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:py-24 lg:grid-cols-2">
+          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-16 md:py-24 lg:grid-cols-2">
             <div>
               <Reveal>
                 <p className="pv-label mb-4">Privacy</p>
@@ -492,76 +596,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
         </section>
       </main>
 
-      {/* Footer — the mark, quiet link columns, the honest bottom line */}
-      <footer className="mt-auto border-t border-ink-800/70 bg-ink-950">
-        <div className="mx-auto max-w-6xl px-4 py-14">
-          <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <Logo className="h-7 w-7 text-signal-400" />
-                <span className="font-display text-lg font-semibold tracking-tight">PocketVeto</span>
-                <span className="pv-num rounded-full border border-ink-800 px-2 py-0.5 text-[10px] text-mist-400">v1.3</span>
-              </div>
-              <p className="mt-4 max-w-xs text-sm leading-relaxed text-mist-400">
-                Your veto before the charge posts. Local-first, open source,
-                installable — the radar for every date your money moves.
-              </p>
-            </div>
-
-            <nav aria-label="Product">
-              <p className="pv-label mb-4">Product</p>
-              <ul className="space-y-3 text-sm text-mist-400">
-                <li><button type="button" onClick={onOpenApp} className="transition-colors hover:text-mist-100">Open the app</button></li>
-                <li><button type="button" onClick={() => scrollToSection('problem')} className="transition-colors hover:text-mist-100">The problem</button></li>
-                <li><button type="button" onClick={() => scrollToSection('features')} className="transition-colors hover:text-mist-100">Features</button></li>
-                <li><button type="button" onClick={() => scrollToSection('privacy')} className="transition-colors hover:text-mist-100">Privacy</button></li>
-              </ul>
-            </nav>
-
-            <nav aria-label="Source">
-              <p className="pv-label mb-4">Source</p>
-              <ul className="space-y-3 text-sm text-mist-400">
-                <li>
-                  <a href="https://github.com/srivtx/pocketveto" target="_blank" rel="noreferrer" className="transition-colors hover:text-mist-100">GitHub</a>
-                </li>
-                <li>
-                  <a href="https://github.com/srivtx/pocketveto/issues" target="_blank" rel="noreferrer" className="transition-colors hover:text-mist-100">Issues</a>
-                </li>
-                <li>
-                  <a href="https://github.com/srivtx/pocketveto/blob/main/CONTRIBUTING.md" target="_blank" rel="noreferrer" className="transition-colors hover:text-mist-100">Contributing</a>
-                </li>
-                <li>
-                  <a href="https://github.com/srivtx/pocketveto/blob/main/CHANGELOG.md" target="_blank" rel="noreferrer" className="transition-colors hover:text-mist-100">Changelog</a>
-                </li>
-              </ul>
-            </nav>
-
-            <div>
-              <p className="pv-label mb-4">Principles</p>
-              <ul className="space-y-3 text-sm text-mist-400">
-                <li>No bank credentials, ever</li>
-                <li>No analytics or telemetry</li>
-                <li>No server — nowhere to phone home</li>
-                <li>Plain-JSON export, yours to keep</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-12 border-t border-ink-800/70 pt-6">
-            <p className="max-w-4xl text-xs leading-relaxed text-mist-500">
-              Stat sources: DealNews survey (2023, $21–23B unused gift cards, 47% of US
-              adults); Ohio State University Extension citing industry data (2025, $90/mo
-              average subscription spend); WalletHub 2026 Deferred Interest Study via CNBC
-              (80% of store cards with 0% APR carry the clawback); Hiatus consumer survey
-              via GlobeNewswire (62%); Cerillion subscription-trap analysis (52% intend to
-              cancel / 38% do). PocketVeto is an organizational tool, not financial advice.
-            </p>
-            <p className="pv-num mt-4 text-[11px] text-mist-500">
-              MIT licensed · local-first by architecture, not policy
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer onOpenApp={onOpenApp} />
     </div>
   );
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app's own ink tokens, mirrored from the web design system. -->
+    <color name="pv_ink">#FF030907</color>
+    <color name="pv_ink_deep">#FF0A0F0E</color>
+    <color name="pv_signal">#FF1FDE9E</color>
+</resources>

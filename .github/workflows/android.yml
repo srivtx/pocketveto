@@ -1,0 +1,68 @@
+name: Android APK
+
+# Builds the PocketVeto Android app: web export (NEXT_STATIC=1) bundled
+# into the native shell, assembled, signed with the sideload key, and
+# attached to a GitHub Release. Sideload distribution — no Play Store.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install (frozen lockfile)
+        run: bun install --frozen-lockfile
+
+      - name: Build web export (static)
+        run: bun run build:static
+
+      - name: Bundle web export into the APK assets
+        run: |
+          mkdir -p android/app/src/main/assets/web
+          rsync -a --delete out/ android/app/src/main/assets/web/
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Assemble release APK
+        working-directory: android
+        run: gradle assembleRelease --no-daemon
+
+      - name: Rename APK
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk \
+             PocketVeto-${GITHUB_REF_NAME:-manual}-android.apk
+
+      - name: Attach to Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PocketVeto-*-android.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
+      - name: Upload artifact (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocketveto-android-apk
+          path: PocketVeto-*-android.apk

@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
+/* NEXT_STATIC=1 → static export for the Android APK (assets/web).
+   Default (no env) keeps the normal standalone/dev build. */
+const isStaticExport = process.env.NEXT_STATIC === "1";
+
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output: isStaticExport ? "export" : "standalone",
+  images: { unoptimized: isStaticExport },
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
