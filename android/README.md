@@ -6,12 +6,12 @@ engine that makes autopay detection automatic on a phone:
 - **`PaymentListenerService`** — reads payment notifications (PhonePe,
   Google Pay, Paytm, banks, card apps) once you flip the *Notification
   access* switch in system settings.
-- **`SmsReceiver`** — optional bank-SMS capture (`RECEIVE_SMS`), granted
-  at runtime from inside the app, off by default.
 - **`MainActivity`** — a WebView serving the bundled web export over
   `https://appassets.androidplatform.net/` (via `WebViewAssetLoader`),
   so IndexedDB storage and the whole PWA behave exactly like on the web.
-  No network is used — every byte is served from the APK's assets.
+  It opens straight into the app view (`#app`) — on a phone, PocketVeto
+  behaves like an app, not a site. No network is used — every byte is
+  served from the APK's assets.
 
 The native side captures **raw text only**. Parsing (amount, payee,
 date, cadence, promo/OTP rejection) happens in the web layer's tested
@@ -34,10 +34,14 @@ Output: `android/app/build/outputs/apk/release/app-release.apk`.
 
 ## Sideload, on purpose
 
-The app is not on Play Store. Store review restricts the SMS permission
-group to default-handler apps, and the whole point of this app is
-honest, local, permission-scoped capture. Sideloaded APKs install with
-one "allow unknown apps" tap and update in place.
+The app is not on Play Store: the whole point of this app is honest,
+local, permission-scoped capture, and store review adds friction without
+adding trust here. v1.4.1 dropped the optional bank-SMS receiver — its
+permission group is what made Play Protect hard-block the install with
+an "identity and financial fraud" warning. With notification-only
+capture, the APK installs through the ordinary "allow unknown apps"
+flow, and payments from PhonePe / GPay / Paytm / bank apps are still
+captured automatically.
 
 ## Signing key
 
@@ -53,7 +57,9 @@ different, actually-private one.
 |---|---|---|
 | `INTERNET` | WebView bookkeeping for the virtual https origin — no external request is ever made | install |
 | Notification access (special app access) | capture payment notifications from other apps | you flip the switch in system settings |
-| `RECEIVE_SMS` | optional bank-SMS capture | runtime prompt, from the Scan tab |
+
+That's the whole list. No location, no SMS, no contacts, no camera —
+nothing that could flag the app as risky at install time.
 
 Every capture stays in the app sandbox until you open PocketVeto, where
 the raw text is parsed on-device and shown as review cards. The queue is

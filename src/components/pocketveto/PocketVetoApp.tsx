@@ -42,6 +42,7 @@ import { KindGlyph } from './KindGlyph';
 import { Logo } from './Logo';
 import { ScanView } from './ScanView';
 import { InstallButton } from './InstallButton';
+import { Welcome } from './Welcome';
 import { useCountUp } from './motion';
 import { useNativeStatus } from '@/lib/pocketveto/native';
 import { toast } from '@/hooks/use-toast';
@@ -506,7 +507,7 @@ export function PocketVetoApp({
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-mist-500">
           <p className="flex items-center gap-2">
             <Logo className="h-4 w-4 text-mist-500" />
-            PocketVeto v1.4.0 — local-first. Nothing leaves this device.
+            PocketVeto — local-first. Nothing leaves this device.
           </p>
           <div className="flex gap-4">
             <a
@@ -523,6 +524,9 @@ export function PocketVetoApp({
           </div>
         </div>
       </footer>
+
+      {/* First-run tutorial (native shell only, skippable, once) */}
+      <Welcome />
 
       <ItemDialog
         open={dialogOpen}
@@ -561,18 +565,29 @@ export function PocketVetoApp({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Blip click → quick view + playbook */}
+      {/* Blip quick view. Backdrop recipe (empirically pinned, v1.4.1 —
+          see the note in globals.css): the blur lives inside its own
+          isolated stacking subtree; the card is a sibling fixed element
+          OUTSIDE that subtree, never a normal-flow child of a full-screen
+          wrapper — that combo blurs the card into the backdrop in Chromium
+          (black frame). */}
       {selectedBlip && (
-        <div
-          className="pv-fade fixed inset-0 z-40 flex items-end justify-center bg-ink-950/70 p-4 backdrop-blur-sm sm:items-center"
-          role="dialog"
-          aria-modal="true"
-          aria-label={selectedBlip.name}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedBlip(null);
-          }}
-        >
-          <div className="pv-pop w-full max-w-md rounded-2xl border border-ink-800 bg-ink-925 p-5 shadow-2xl shadow-black/50">
+        <>
+          <div className="fixed inset-0 z-40 isolate" aria-hidden>
+            <div className="absolute inset-0 bg-ink-950/70 backdrop-blur-sm" />
+          </div>
+          {/* transparent click-catcher (below the card, above the blur) */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setSelectedBlip(null)}
+            aria-hidden
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={selectedBlip.name}
+            className="pv-pop fixed left-1/2 top-1/2 z-40 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-ink-800 bg-ink-925 p-5 shadow-2xl shadow-black/50"
+          >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink-800 bg-ink-950 text-signal-400">
@@ -661,7 +676,7 @@ export function PocketVetoApp({
               </Button>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

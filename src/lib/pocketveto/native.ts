@@ -2,10 +2,14 @@
  * native.ts — the Android bridge adapter.
  *
  * The Android APK ships this web app with a headless native capture
- * engine (NotificationListenerService + optional SMS receiver). It
- * exposes itself as `window.PocketVetoNative`; in every other context
- * (browser, installed PWA, iOS) that object does not exist and this
- * module is inert — the app degrades to share/paste, exactly as before.
+ * engine (NotificationListenerService). It exposes itself as
+ * `window.PocketVetoNative`; in every other context (browser, installed
+ * PWA, iOS) that object does not exist and this module is inert — the
+ * app degrades to share/paste, exactly as before.
+ *
+ * v1.4.1 note: the optional SMS receiver is gone (its permission group
+ * made Play Protect hard-block installs); notifications cover the
+ * payment feeds, and the bridge no longer carries SMS plumbing.
  *
  * Rules the whole bridge obeys:
  *  - Server renders never touch it (hydration stays deterministic).
@@ -17,9 +21,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
 export interface NativeCapture {
-  /** Android package ("com.phonepe.app") or "sms" for bank SMS. */
+  /** Android package ("com.phonepe.app"). */
   source: string;
-  /** Notification title / SMS sender — evidence, shown to the user. */
+  /** Notification title — evidence, shown to the user. */
   title: string;
   /** Raw body text — the parser's input. */
   text: string;
@@ -33,14 +37,11 @@ interface NativeBridgeShape {
   /** JSON array of captures; drains the native queue. */
   takeCaptured(): string;
   notifEnabled(): boolean;
-  smsEnabled(): boolean;
   openNotifAccess(): void;
-  requestSms(): void;
 }
 
 /** Friendly labels for known capture sources. Unknowns get a cleaned tail. */
 const APP_LABELS: Record<string, string> = {
-  sms: 'Bank SMS',
   'com.phonepe.app': 'PhonePe',
   'com.google.android.apps.nbu.paisa.user': 'Google Pay',
   'net.one97.paytm': 'Paytm',
@@ -100,7 +101,6 @@ export interface NativeStatus {
   /** True only inside the Android shell. */
   available: boolean;
   notifEnabled: boolean;
-  smsEnabled: boolean;
   pendingCount: number;
 }
 
@@ -110,7 +110,6 @@ export type NativeStatusLive = NativeStatus & { refresh: () => void };
 const NATIVE_IDLE: NativeStatus = {
   available: false,
   notifEnabled: false,
-  smsEnabled: false,
   pendingCount: 0,
 };
 
@@ -124,7 +123,6 @@ export function useNativeStatus() {
       setStatus({
         available: true,
         notifEnabled: b.notifEnabled(),
-        smsEnabled: b.smsEnabled(),
         pendingCount: b.captureCount(),
       });
     } catch {
@@ -142,7 +140,7 @@ export function useNativeStatus() {
       refresh();
     })();
     const onWake = () => refresh();
-    // Returning from the notification-access or SMS settings screens is
+    // Returning from the notification-access settings screen is
     // the moment these values actually change.
     window.addEventListener('focus', onWake);
     document.addEventListener('visibilitychange', onWake);

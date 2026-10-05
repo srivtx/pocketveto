@@ -262,6 +262,15 @@
   animation: pv-fade var(--pv-t) linear both;
 }
 
+/* Backdrop-filter rule (empirically pinned in v1.4.1): a blur overlay
+   must live inside its own ISOLATED stacking subtree (an `isolate`
+   wrapper), and the dialog card must be a sibling fixed element OUTSIDE
+   that subtree — never a normal-flow child of a full-screen wrapper.
+   Break either half and Chromium blurs the card into the backdrop:
+   the whole frame goes black. Radix portals (shadcn dialogs) are
+   insulated by their own subtree; hand-rolled overlays must isolate
+   themselves. See Welcome.tsx / PocketVetoApp.tsx. */
+
 .pv-scene {
   animation: pv-scene 340ms var(--pv-ease) both;
 }

@@ -103,7 +103,6 @@ describe('sourceLabel', () => {
   test('known packages get friendly names', () => {
     expect(sourceLabel('com.phonepe.app')).toBe('PhonePe');
     expect(sourceLabel('com.google.android.apps.nbu.paisa.user')).toBe('Google Pay');
-    expect(sourceLabel('sms')).toBe('Bank SMS');
   });
 
   test('unknown packages degrade to a cleaned tail', () => {

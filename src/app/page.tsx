@@ -36,6 +36,12 @@ function readIntent(): { route: Route; sharedText: string } {
     window.history.replaceState(null, '', `${window.location.pathname}#app`);
     return { route: 'app', sharedText: shared };
   }
+  // Inside the Android APK the bridge exists — and a phone app should open
+  // like an app, not on a marketing page. First run shows the skippable
+  // tutorial (Welcome) instead of the landing hero.
+  if ('PocketVetoNative' in window) {
+    return { route: 'app', sharedText: '' };
+  }
   return { route: window.location.hash === '#app' ? 'app' : 'landing', sharedText: '' };
 }
 

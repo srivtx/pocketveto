@@ -3,22 +3,25 @@
 How PocketVeto finds the charges you forgot. Every rung is graded on
 what it can actually read, not what marketing wishes it could.
 
-## Where we are (v1.4.0)
+## Where we are (v1.4.1)
 
 | Rung | Channel | Status |
 |---|---|---|
 | 1 | **Share** — share a payment SMS/notification into the installed PWA (Android) | shipped |
 | 2 | **Paste** — bank/card statement text or CSV, parsed on-device | shipped |
-| 3 | **Android app** — notification listener + optional bank-SMS receiver capture payments automatically | **shipped** (`android/`, APK from Releases) |
+| 3 | **Android app** — notification listener captures payments automatically | **shipped** (`android/`, APK from Releases) |
 | 4 | Inbox adapter — opt-in Gmail receipt scan | designed, not built |
 | 5 | Bank aggregation — India AA (Setu/Finvu) or Plaid-style open banking | research only |
 
-Rung 3 is the one people actually want: install the APK, flip one switch
-(*Notification access* in system settings), optionally allow bank SMS —
-and every PhonePe/GPay/Paytm/bank payment notification lands in the Scan
-tab as a ready-to-track card. The native side captures **raw text
-only**; parsing (amounts, payees, dates, cadence, promo/OTP rejection)
-runs in the same tested detector as the web flows, entirely on-device.
+Rung 3 is the one people actually want: install the APK, flip one
+switch (*Notification access* in system settings) — and every
+PhonePe/GPay/Paytm/bank payment notification lands in the Scan tab as a
+ready-to-track card. The native side captures **raw text only**; parsing
+(amounts, payees, dates, cadence, promo/OTP rejection) runs in the same
+tested detector as the web flows, entirely on-device. Recognized brands
+are flagged as *known subscriptions* (a local catalog — no server), so
+two captures with a fitting rhythm are enough, even across a plan-price
+change.
 
 ## Why the web alone can't do it
 
@@ -52,14 +55,38 @@ Google is tightening sideloading: newer Android versions add extra
 warning steps for apps outside Play, and advanced-protection users can
 be blocked outright. What that means here:
 
+- **v1.4.1 dropped the optional bank-SMS receiver.** An APK declaring
+  the SMS permission group gets Play Protect's hardest treatment —
+  "unsafe app blocked … identity and financial fraud" — often with no
+  proceed-anyway path. Notification access is *special app access*
+  (a settings toggle, not an install-time permission), so the app now
+  installs through the ordinary "allow unknown apps" flow. The capture
+  engine lost nothing that matters: PhonePe, GPay, Paytm and bank apps
+  all announce payments through notifications.
 - The APK is built by public CI from this repository — reproducible,
-  source-auditable, signed with the committed sideload key.
+  source-auditable, signed with the committed sideload key. Every
+  release re-attaches a stable filename, so
+  `releases/latest/download/PocketVeto-android.apk` always resolves.
 - At install, choose **"Scan app"** when Play Protect asks — it is a
   genuinely good idea for any APK.
 - For updates without Play: **Obtainium** (FOSS) tracks GitHub Releases
   and updates this app in one tap — the recommended install path.
-- If Play distribution ever matters more than the SMS permission, the
-  TWA track (rung-3-free, share/paste only) is the Play-safe subset.
+- If Play distribution ever matters more than auto-capture, the TWA
+  track (share/paste only) is the Play-safe subset.
+
+## Why not "just look up my subscriptions by email"?
+
+A tempting design — sign in with Google, take the email, fetch "known
+subscriptions in the country" — has a data problem and a promise
+problem. The data problem: no public database maps an email address to
+its subscriptions; merchants don't expose that. Every service that
+"finds your subscriptions" either scans your inbox (Gmail API — a
+server-side OAuth) or links your bank (Plaid / India AA — a licensed
+server). The promise problem: an account, a token and a server are
+exactly what PocketVeto's privacy card says it will never ask for. The
+robust local-first path is what v1.4.1 ships: captured payments +
+recurrence detection + a bundled catalog of known subscription brands
+— automatic, and every byte stays on the phone.
 
 ## Rung 4 — inbox adapter (designed)
 
@@ -89,7 +116,9 @@ ships, it ships as an explicit opt-in adapter, never as a login wall.
 - NotificationListenerService — Android API docs (API 18+), special
   app access; payment-tracker usage is the established pattern.
 - Play policy: SMS/Call-Log permissions restricted to default handlers
-  (Google Play Policy Center) — the reason rung 3 ships as a sideload.
+  (Google Play Policy Center) — and Play Protect's identity-fraud
+  hard-block on SMS-permission APKs (field-verified on the v1.4.0
+  install flow; the reason v1.4.1 is notification-only).
 - Sideload tightening 2025–26: Google unverified-app blocking (Aug
   2025), new multi-step sideload flow (Android Authority, Mar 2026).
 - TWA: developer.android.com / developer.chrome.com overviews.

@@ -141,6 +141,37 @@ describe('detectRecurring', () => {
     expect(detected.find((d) => d.key.includes('AMAZON'))).toBeUndefined();
   });
 
+  test('known subscription brand: two samples survive a plan-price change', () => {
+    // 649 → 799 is a ~21% spread — past the unknown gate, fine for a
+    // recognized subscription brand (Netflix plan change).
+    const { detected } = scanStatement(
+      ['2026-07-02 NETFLIX.COM -649.00', '2026-08-02 NETFLIX.COM -799.00'].join('\n')
+    );
+    const nf = detected.find((d) => d.merchant === 'Netflix');
+    expect(nf).toBeDefined();
+    expect(nf!.known).toBe(true);
+    expect(nf!.confidence).toBeGreaterThanOrEqual(0.85);
+    expect(nf!.amount).toBe(799);
+    expect(nf!.cadence).toBe('monthly');
+  });
+
+  test('unknown merchant with the same two-sample spread stays out', () => {
+    const { detected } = scanStatement(
+      ['2026-07-02 LOCAL ROASTERY -649.00', '2026-08-02 LOCAL ROASTERY -799.00'].join('\n')
+    );
+    expect(detected.find((d) => d.key.includes('LOCAL'))).toBeUndefined();
+  });
+
+  test('recognized brands across the statement are flagged known', () => {
+    const { detected } = scanStatement(SAMPLE_STATEMENT);
+    const netflix = detected.find((d) => d.merchant === 'Netflix');
+    expect(netflix?.known).toBe(true);
+    // and every detected known-brand entry carries the confidence floor
+    for (const d of detected.filter((x) => x.known)) {
+      expect(d.confidence).toBeGreaterThanOrEqual(0.85);
+    }
+  });
+
   test('weekly cadence maps to custom recurrence with 7 days', () => {
     const item = detectedToItem({
       key: 'CSA FARM',

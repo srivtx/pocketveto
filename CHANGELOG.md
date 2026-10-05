@@ -4,6 +4,36 @@ All notable changes to PocketVeto are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/).
 
+## [1.4.1] — 2026-10-05
+
+### Fixed
+- **The APK installs without a fight.** v1.4.0's optional bank-SMS
+  receiver declared the SMS permission group, which made Play Protect
+  hard-block the install ("can access sensitive data … identity and
+  financial fraud") with no proceed-anyway path. The receiver is gone —
+  notification access alone now carries auto-detection, and the app
+  installs through the ordinary "allow unknown apps" flow.
+- The APK opens like an app, not a website: the shell loads the app
+  view directly, and a skippable one-time tutorial (three steps, Skip
+  always visible) covers the notification-access switch on first run.
+
+### Added
+- **Device-aware install.** On Android browsers the install button and a
+  dismissible strip link straight to the latest release APK — CI
+  re-attaches a stable filename (`PocketVeto-android.apk`) every
+  release, so the link never rots. Desktop keeps the browser install
+  flow; inside the APK, install UI disappears entirely.
+- **Known-subscription detection.** Recognized brands (Netflix,
+  Spotify, Hotstar, SonyLIV, …) are flagged as known subscriptions by a
+  bundled local catalog — no server, no email lookup — which survives a
+  plan-price change between two captures and floors confidence at 0.85.
+- Privacy section redesigned: the "never ask for" list is now a quiet
+  tile grid with the storage/export spec as a mono footer.
+
+### Changed
+- README reworked: the writing leads, one screenshot follows it — no
+  more full-page capture at the top.
+
 ## [1.4.0] — 2026-10-05
 
 ### Added

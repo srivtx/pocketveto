@@ -16,7 +16,6 @@ import {
   Check,
   FileUp,
   Info,
-  MessageSquare,
   Plus,
   RotateCcw,
   ScanLine,
@@ -76,7 +75,8 @@ function runScan(text: string): ScanState {
   return { mode: 'statement', origin: 'paste', parse, detected };
 }
 
-function confidenceLabel(c: number): string {
+function confidenceLabel(c: number, known?: boolean): string {
+  if (known) return 'Known subscription';
   if (c >= 0.8) return 'High confidence';
   if (c >= 0.65) return 'Good confidence';
   return 'Likely';
@@ -138,7 +138,9 @@ function DetectedCard({
               style={{ width: `${Math.round(d.confidence * 100)}%` }}
             />
           </div>
-          <span className="pv-num text-[11px] text-mist-500">{confidenceLabel(d.confidence)}</span>
+          <span className={`pv-num text-[11px] ${d.known ? 'text-signal-400' : 'text-mist-500'}`}>
+            {confidenceLabel(d.confidence, d.known)}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {d.playbookTitle && (
@@ -388,21 +390,7 @@ export function ScanView({
                 <BellPlus className="h-4 w-4" aria-hidden /> Allow notification capture
               </Button>
             )}
-            {native.smsEnabled ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-500/40 bg-signal-400/10 px-3 py-1.5 text-xs text-signal-300">
-                <Check className="h-3.5 w-3.5" strokeWidth={2} aria-hidden /> Bank SMS on
-              </span>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-ink-800 hover:bg-ink-900"
-                onClick={() => getNativeBridge()?.requestSms()}
-              >
-                <MessageSquare className="h-4 w-4" aria-hidden /> Also read bank SMS
-              </Button>
-            )}
-            {(native.notifEnabled || native.smsEnabled) && (
+            {native.notifEnabled && (
               <Button
                 size="sm"
                 variant="ghost"

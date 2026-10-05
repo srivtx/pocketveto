@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
 import android.webkit.JavascriptInterface
@@ -24,9 +23,16 @@ import androidx.webkit.WebViewAssetLoader
  * network is ever touched: the loader answers every request from the
  * bundled assets.
  *
+ * The app opens straight into the app view (`#app`), not the landing
+ * page — on a phone, PocketVeto should behave like an app, not a site.
+ * The first-run tutorial (web layer) handles the intro, skippably.
+ *
  * The bridge (window.PocketVetoNative) exposes the capture engine to the
- * web layer: drained captures, permission states, and the two switches
- * (notification access settings, SMS runtime permission).
+ * web layer: drained captures, permission state, and the switch to the
+ * notification-access settings screen. v1.4.1 dropped the optional SMS
+ * receiver entirely: its permission group is what made Play Protect
+ * hard-block the install with an identity-fraud warning no user should
+ * have to fight through. Notifications alone cover the payment feeds.
  */
 class MainActivity : Activity() {
 
@@ -69,7 +75,7 @@ class MainActivity : Activity() {
 
         setContentView(webView)
 
-        webView.loadUrl("https://$assetDomain/")
+        webView.loadUrl("https://$assetDomain/#app")
     }
 
     override fun onDestroy() {
@@ -77,7 +83,7 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 
-    /** Back navigates the web history (landing ⇄ app) before leaving. */
+    /** Back navigates the web history before leaving the app. */
     @Deprecated("Deprecated in Java")
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
@@ -85,9 +91,6 @@ class MainActivity : Activity() {
     }
 
     /* ---------------- permission plumbing ---------------- */
-
-    private fun smsGranted(): Boolean =
-        checkSelfPermission(android.Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
 
     private fun notifAccessGranted(): Boolean {
         val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
@@ -118,9 +121,6 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun notifEnabled(): Boolean = notifAccessGranted()
 
-        @JavascriptInterface
-        fun smsEnabled(): Boolean = smsGranted()
-
         /** Opens the system "Notification access" settings page. */
         @JavascriptInterface
         fun openNotifAccess() {
@@ -129,21 +129,5 @@ class MainActivity : Activity() {
             }
         }
 
-        /** Requests the RECEIVE_SMS runtime permission. */
-        @JavascriptInterface
-        fun requestSms() {
-            runOnUiThread {
-                if (!smsGranted()) {
-                    requestPermissions(
-                        arrayOf(android.Manifest.permission.RECEIVE_SMS),
-                        SMS_REQUEST_CODE,
-                    )
-                }
-            }
-        }
-    }
-
-    companion object {
-        const val SMS_REQUEST_CODE = 1001
     }
 }

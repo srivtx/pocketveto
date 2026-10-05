@@ -8,13 +8,14 @@
  * voice, mono carries the data, one signal color carries the intent.
  */
 
-import { useEffect, useRef } from 'react';
-import { Bell, Calculator, HardDriveDownload, Radar, ScanLine, X, Crosshair, Share2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Bell, BellOff, Calculator, EyeOff, HardDriveDownload, Landmark, Radar, ScanLine, ServerOff, UserX, X, Crosshair, Share2, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RadarChart } from './RadarChart';
 import { Logo } from './Logo';
 import { InstallButton } from './InstallButton';
 import { Reveal, useCountUp } from './motion';
+import { APK_LATEST_URL, isAndroidBrowser } from '@/lib/pocketveto/platform';
 import type { ItemView } from '@/lib/pocketveto/types';
 
 /** Smooth-scroll to a landing section WITHOUT touching the hash — the hash
@@ -99,8 +100,8 @@ const STATS: { value: number; format: (n: number) => string; label: string; src:
     src: 'DealNews survey, 2023',
   },
   {
-    value: 1080,
-    format: (n) => `$${Math.round(n).toLocaleString('en-US')}/yr`,
+    value: 90,
+    format: (n) => `$${Math.round(n)}/mo`,
     label: 'average subscription spend per person',
     src: 'Ohio State Univ. extension, 2025',
   },
@@ -152,12 +153,78 @@ const FEATURES = [
 ];
 
 const ABSENCES = [
-  'No account to create',
-  'No bank credentials, ever',
-  'No analytics or telemetry',
-  'No server — nowhere to phone home',
-  'No push vendor reading your dates',
+  { icon: UserX, label: 'No account', sub: 'nothing to create' },
+  { icon: Landmark, label: 'No bank credentials', sub: 'no logins, ever' },
+  { icon: EyeOff, label: 'No analytics', sub: 'zero telemetry' },
+  { icon: ServerOff, label: 'No server', sub: 'nowhere to phone home' },
+  { icon: BellOff, label: 'No push vendor', sub: 'nobody reads your dates' },
 ];
+
+/** Android-strip — “you're on a phone, get the app that auto-detects.”
+ * Only in Android browsers (never the APK itself, never desktop),
+ * dismissible, stays dismissed. Hydration-safe: flips in an effect. */
+function AndroidStrip() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    // async gap (house pattern): state lands outside the sync effect scope
+    let alive = true;
+    (async () => {
+      await Promise.resolve();
+      if (!alive) return;
+      if (!isAndroidBrowser()) return;
+      if ('PocketVetoNative' in window) return;
+      if (window.matchMedia('(display-mode: standalone)').matches) return;
+      try {
+        if (localStorage.getItem('pv.android.strip.dismissed')) return;
+      } catch {
+        /* show it — a broken storage read is not a reason to hide */
+      }
+      setShow(true);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (!show) return null;
+  return (
+    <div className="pv-rise border-b border-signal-500/25 bg-signal-400/[0.07]">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
+        <p className="flex min-w-0 flex-1 items-center gap-2.5 text-[13px] leading-snug text-signal-200">
+          <Smartphone className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
+          <span>
+            You&apos;re on Android — the PocketVeto app installs in one tap and
+            auto-detects payments from your notifications.
+          </span>
+        </p>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <a
+            href={APK_LATEST_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-full bg-signal-400 px-3.5 py-1.5 text-xs font-semibold text-ink-950 transition-colors hover:bg-signal-300"
+          >
+            Get the APK
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              setShow(false);
+              try {
+                localStorage.setItem('pv.android.strip.dismissed', '1');
+              } catch {
+                /* non-fatal */
+              }
+            }}
+            className="rounded-md p-1.5 text-signal-300/60 transition-colors hover:bg-signal-400/10 hover:text-signal-200"
+            aria-label="Dismiss"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Stat({ stat, delay }: { stat: (typeof STATS)[number]; delay: number }) {
   const n = useCountUp(stat.value, 1100);
@@ -285,9 +352,6 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
           <div className="flex items-center gap-2.5">
             <Logo className="h-8 w-8 text-signal-400" />
             <span className="font-display text-lg font-semibold tracking-tight">PocketVeto</span>
-            <span className="pv-num hidden rounded-full border border-ink-800 px-2 py-0.5 text-[10px] text-mist-400 sm:block">
-              v1.4
-            </span>
           </div>
           <nav className="hidden items-center gap-7 text-sm text-mist-400 md:flex" aria-label="Sections">
             <button type="button" onClick={() => scrollToSection('problem')} className="transition-colors hover:text-mist-100">
@@ -323,6 +387,9 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
         </div>
         <ScrollProgress />
       </header>
+
+      {/* Android visitors: the app is the better install */}
+      <AndroidStrip />
 
       <main className="flex-1">
         {/* Hero */}
@@ -548,48 +615,56 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
                 </h2>
               </Reveal>
               <Reveal delay={90}>
-                <div className="mt-7 space-y-5 text-[15px] leading-relaxed text-mist-300">
+                <div className="mt-7 max-w-xl space-y-5 text-[15px] leading-relaxed text-mist-300">
                   <p>
-                    PocketVeto has no accounts, no analytics, no bank linkage and no server.
-                    Your items are stored in your own browser storage (IndexedDB) and every
-                    byte stays on your device — including any statement text you scan: the
-                    autopay detector runs locally, so the paste never leaves your browser.
-                    The app works fully offline once installed — because there is nowhere for
-                    it to phone home to.
+                    No accounts, no analytics, no bank linkage, no server. Your
+                    items — and any statement or notification text you scan — live
+                    in this device&apos;s storage and are parsed by code running
+                    right here. The app works fully offline because there is
+                    nowhere for it to phone home to.
                   </p>
                   <p>
-                    Moving devices? Use Export to get a plain JSON file and Import it anywhere.
-                    It&apos;s your data; the file format is documented in the repository.
+                    Moving devices? Export gives you a plain JSON file — your
+                    data, documented format, yours to keep — and Import brings it
+                    back anywhere.
                   </p>
                   <p className="text-sm text-mist-500">
-                    One honest limit: browser notifications fire while PocketVeto is open or
-                    its background worker can run (installed PWAs on Android/desktop do this
-                    well; iOS Safari is more restrictive). v1 deliberately ships no push
-                    server — a self-hostable notifier is on the roadmap for people who want
-                    it.
+                    One honest limit: browser alerts fire while PocketVeto can
+                    run (installed PWAs do this well; iOS Safari is stricter).
+                    The Android app covers the rest — no push server, ever.
                   </p>
                 </div>
               </Reveal>
             </div>
             <Reveal delay={160} className="self-start">
-              <div className="rounded-2xl border border-ink-800 bg-ink-950 p-7">
+              <div className="rounded-2xl border border-ink-800 bg-ink-950 p-6">
                 <p className="pv-label mb-5">What this app will never ask for</p>
-                <ul className="space-y-4">
-                  {ABSENCES.map((a) => (
-                    <li key={a} className="flex items-center gap-3 text-sm text-mist-300">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-cliff-400/30 bg-cliff-400/10">
-                        <X className="h-3 w-3 text-cliff-400" strokeWidth={2.5} aria-hidden />
-                      </span>
-                      {a}
-                    </li>
+                <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2">
+                  {ABSENCES.map((a, i) => (
+                    <Reveal key={a.label} delay={i * 70} className="h-full">
+                      <div className="group flex h-full items-center gap-3 rounded-xl border border-ink-800/80 bg-ink-925/40 px-3.5 py-3 transition-colors duration-300 hover:border-signal-500/40">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-ink-800 bg-ink-950 text-mist-400 transition-colors duration-300 group-hover:text-cliff-300">
+                          <a.icon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-[13px] font-medium leading-tight text-mist-200">
+                            {a.label}
+                          </span>
+                          <span className="pv-num block truncate text-[11px] leading-tight text-mist-500">
+                            {a.sub}
+                          </span>
+                        </span>
+                      </div>
+                    </Reveal>
                   ))}
-                </ul>
-                <div className="my-6 h-px bg-ink-800" />
-                <p className="pv-num text-xs leading-relaxed text-mist-500">
-                  storage: IndexedDB, this device only
-                  <br />
-                  export: plain JSON, yours to keep
-                </p>
+                </div>
+                <div className="mt-5 border-t border-ink-800/70 pt-4">
+                  <p className="pv-num text-[11px] leading-relaxed text-mist-500">
+                    storage → IndexedDB, this device only
+                    <br />
+                    export → plain JSON, yours to keep
+                  </p>
+                </div>
               </div>
             </Reveal>
           </div>

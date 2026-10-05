@@ -7,10 +7,10 @@ import org.json.JSONObject
 /**
  * CaptureStore — the on-device queue of raw payment-like captures.
  *
- * What it holds: the RAW text of a notification or SMS (plus source
- * package, sender title and a timestamp). Nothing is parsed here, nothing
- * is uploaded anywhere — parsing happens in the WebView layer with the
- * app's tested detector, and every byte stays inside the app sandbox.
+ * What it holds: the RAW text of a captured payment notification (plus
+ * source package, sender title and a timestamp). Nothing is parsed here,
+ * nothing is uploaded anywhere — parsing happens in the WebView layer with
+ * the app's tested detector, and every byte stays inside the app sandbox.
  *
  * Dedup rule: same source + same text on the same day is one capture.
  * The queue is capped (60) and drops the oldest when full.

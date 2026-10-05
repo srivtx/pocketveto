@@ -329,6 +329,9 @@ export interface DetectedRecurring {
   monthlyCost: number;
   /** 0..1 — how sure the detector is. */
   confidence: number;
+  /** True when the merchant is a recognized subscription brand — a
+   *  local catalog, no server: the brand itself is the evidence. */
+  known?: boolean;
   /** Playbook service title when the merchant is recognized. */
   playbookTitle?: string;
   kind: ItemKind;
@@ -406,13 +409,20 @@ export function detectRecurring(txs: ScannedTransaction[]): DetectedRecurring[] 
     const amount = amounts[amounts.length - 1];
     const medAmount = median(amounts);
     const amountSpread = medAmount > 0 ? (Math.max(...amounts) - Math.min(...amounts)) / medAmount : 0;
-    // two samples only count when the amounts clearly match
-    if (sorted.length === 2 && amountSpread > 0.15) continue;
+    const brand = brandFor(key);
+
+    // A recognized subscription brand changes the math: the rhythm fit plus
+    // the catalog is strong evidence on its own, so two samples survive a
+    // plan-price change (Netflix 649 → 799), and confidence floors at 0.85.
+    const twoSampleGate = brand ? 0.4 : 0.15;
+    if (sorted.length === 2 && amountSpread > twoSampleGate) continue;
 
     const countFactor = { 2: 0.5, 3: 0.72, 4: 0.84 }[sorted.length] ?? 0.92;
     const amountFactor = amountSpread <= 0.02 ? 1 : amountSpread <= 0.15 ? 0.92 : amountSpread <= 0.4 ? 0.8 : 0.62;
     const playbook = servicePlaybook(displayMerchant(sorted.map((t) => t.merchant), key));
-    const brand = brandFor(key);
+    const confidence = brand
+      ? Math.max(0.85, countFactor * amountFactor)
+      : Math.min(0.97, countFactor * amountFactor);
 
     found.push({
       key,
@@ -425,7 +435,8 @@ export function detectRecurring(txs: ScannedTransaction[]): DetectedRecurring[] 
       count: sorted.length,
       nextDate: nextDateFor(sorted[sorted.length - 1].date, fit.name),
       monthlyCost: (medAmount * 30.44) / cadenceStepDays(fit.name),
-      confidence: Math.min(0.97, countFactor * amountFactor),
+      confidence,
+      known: Boolean(brand),
       playbookTitle: playbook?.title,
       kind: brand?.kind ?? 'subscription',
     });
