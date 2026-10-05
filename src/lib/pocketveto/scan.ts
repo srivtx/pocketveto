@@ -51,7 +51,8 @@ function isoOf(y: number, m: number, d: number): string | null {
   return `${y}-${pad2(m)}-${pad2(d)}`;
 }
 
-/** Find a date token in a string: ISO, M/D/YYYY, M/D/YY, "Sep 5, 2026". */
+/** Find a date token in a string: ISO, M/D/YYYY, M/D/YY, "Sep 5, 2026",
+ *  and D-M-YY[YY] (the dash convention — Indian bank SMS read day-first). */
 function findDate(s: string): { iso: string; rest: string } | null {
   let m = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (m) {
@@ -61,6 +62,11 @@ function findDate(s: string): { iso: string; rest: string } | null {
   m = s.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
   if (m) {
     const iso = isoOf(+m[3], +m[1], +m[2]);
+    if (iso) return { iso, rest: s.replace(m[0], ' ') };
+  }
+  m = s.match(/\b(\d{1,2})-(\d{1,2})-(\d{2,4})\b/);
+  if (m) {
+    const iso = isoOf(+m[3], +m[2], +m[1]); // day-first (bank SMS convention)
     if (iso) return { iso, rest: s.replace(m[0], ' ') };
   }
   m = s.match(/\b([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})\b/);
@@ -74,11 +80,23 @@ function findDate(s: string): { iso: string; rest: string } | null {
   return null;
 }
 
-/** Parse a money token: "$12.99", "-$12.99", "(12.99)", "1,299.00". */
+/** Parse a money token: "$12.99", "-₹349", "Rs. 1,200.50", "INR 99".
+ *  Symbol-prefixed amounts may omit decimals (₹349); bare numbers still
+ *  require them, so refs and card numbers never read as money. */
+const SYMBOL_AMOUNT = /(?:₹|\$|\brs\.?|\binr\b)\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?/gi;
+
 function findAmount(s: string): { value: number; rest: string } | null {
-  const re = /\(?-?\s?\$?\s?-?(\d{1,3}(?:,\d{3})+|\d+)\.(\d{2})\)?/g;
   let best: { value: number; rest: string } | null = null;
   let mm: RegExpExecArray | null;
+  SYMBOL_AMOUNT.lastIndex = 0;
+  while ((mm = SYMBOL_AMOUNT.exec(s))) {
+    const value = Number(`${mm[1]}.${mm[2] ?? '00'}`);
+    if (Number.isFinite(value) && value !== 0) {
+      best = { value, rest: s.replace(mm[0], ' ') };
+    }
+  }
+  if (best) return best;
+  const re = /\(?-?\s?\$?\s?-?(\d{1,3}(?:,\d{3})+|\d+)\.(\d{2})\)?/g;
   while ((mm = re.exec(s))) {
     const negative = mm[0].includes('(') || mm[0].includes('-');
     const value = Number(`${mm[1]}.${mm[2]}`);
@@ -196,6 +214,9 @@ const NOISE_TOKENS = new Set([
   'XX', 'XXX', 'COM', 'INC', 'LLC', 'SUBSCRIPTION', 'MONTHLY', 'ANNUAL',
   'BILLING', 'BILL', 'TXN', 'ID', 'REF', 'TRACE', 'DATE', 'ON', 'AT', 'TO',
   'FROM', 'THE', 'AND', 'PUR', 'REPEAT', 'REOCCURRING', 'REOCCURING',
+  // UPI / notification noise
+  'UPI', 'IMPS', 'NEFT', 'VPA', 'A/C', 'AC', 'ACCT', 'PAID', 'DEBITED',
+  'CREDITED', 'SPENT', 'INR', 'RS',
 ]);
 
 /** Known brand fragments → pretty display names (and a kind hint). */
@@ -226,6 +247,17 @@ const BRANDS: { fragments: string[]; name: string; kind?: ItemKind }[] = [
   { fragments: ['WSJ', 'WALL STREET JOURNAL'], name: 'WSJ' },
   { fragments: ['CRUNCH', 'PLANET FITNESS', 'EQUINOX', 'ANYTIME FITNESS'], name: 'Gym membership', kind: 'membership' },
   { fragments: ['GO DADDY', 'GODADDY', 'NAMECHEAP', 'NAME.COM', 'DOMAIN'], name: 'Domain renewal', kind: 'domain' },
+  // India / UPI receipts
+  { fragments: ['HOTSTAR'], name: 'Disney+ Hotstar' },
+  { fragments: ['JIOCINEMA', 'JIO SAVAN', 'JIOSAAVN', 'JIO'], name: 'Jio' },
+  { fragments: ['SONYLIV', 'SONY LIV'], name: 'SonyLIV' },
+  { fragments: ['ZEE5'], name: 'ZEE5' },
+  { fragments: ['AIRTEL'], name: 'Airtel' },
+  { fragments: ['GAANA'], name: 'Gaana' },
+  { fragments: ['PRIMEVIDEO', 'AMAZON PRIME VIDEO'], name: 'Prime Video' },
+  { fragments: ['SWIGGY'], name: 'Swiggy One', kind: 'subscription' },
+  { fragments: ['ZOMATO'], name: 'Zomato Gold', kind: 'subscription' },
+  { fragments: ['CULTFIT', 'CULT FIT'], name: 'cult.fit', kind: 'membership' },
 ];
 
 function normalizeMerchant(raw: string): string {
@@ -430,6 +462,147 @@ export function detectedToItem(d: DetectedRecurring, today: string = todayISO())
     autoAdvance: true,
     status: 'active',
     notes: `Detected from statement: ${d.count} charges, every ~${d.medianGapDays} days (last: ${last.date}, ${last.merchant.trim().slice(0, 60)}).`,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared payment text (Web Share Target)                              */
+/*                                                                     */
+/* When PocketVeto is installed, Android's share sheet can send it     */
+/* text from ANY app: a GPay/PhonePe notification, a bank SMS, an      */
+/* emailed receipt. This section parses that text — on-device, same    */
+/* as statements. The OS keeps web apps out of notifications/SMS       */
+/* directly (that boundary is a feature); the share sheet is the       */
+/* user-driven bridge that needs no permissions at all.                */
+/* ------------------------------------------------------------------ */
+
+export interface ParsedCharge {
+  /** Absolute payment amount. */
+  amount: number;
+  /** Display-ready payee name. */
+  merchant: string;
+  /** Normalized grouping key (same space as DetectedRecurring.key). */
+  key: string;
+  /** ISO yyyy-mm-dd — `today` when the line carried no date. */
+  date: string;
+  /** True when the date was assumed (a just-now notification). */
+  dateAssumed: boolean;
+  /** The original line, for evidence in the item notes. */
+  raw: string;
+}
+
+export interface PaymentParseResult {
+  charges: ParsedCharge[];
+  /** Lines that looked like payment activity but read neither date nor amount. */
+  unparsed: number;
+  /** How many charges carry an assumed date. */
+  assumed: number;
+}
+
+/** Payee prepositions, most specific first ("towards" is bank-SMS for payee). */
+const PAYEE_PREPOSITIONS = ['towards', 'to', 'for', 'at', 'by', 'from'] as const;
+
+const BANK_TAILS =
+  /[\s-]*(?:hdfc|icici|icicibank|sbi|axis|kotak|yes\s?bank|idfc|idfc\s?first|pnb|bob|bank\s+of\s+(?:baroda|india)|indusind|federal|canara|union\s+bank|central\s+bank|paytm\s+payments\s+bank|phonepe|gpay|google\s+pay|amazon\s+pay|paytm|bhim)\s*(?:bank)?\b.*$/i;
+
+/** Extract the payee from a notification body (date + amount removed). */
+function extractPayee(rest: string): string | null {
+  for (const prep of PAYEE_PREPOSITIONS) {
+    const re = new RegExp(`\\b${prep}\\s+([A-Za-z][A-Za-z0-9 &.'@_-]{1,40}?)(?=\\s+(?:via|using|through|on|ref|no\\.?|dated?)\\b|\\s*[-–|,.:;]|\\s*$|,)`, 'i');
+    const m = rest.match(re);
+    if (m?.[1]) {
+      let name = m[1].trim();
+      name = name.replace(BANK_TAILS, '').trim();
+      // VPA-style payees: netflix@ybl → netflix
+      if (name.includes('@')) name = name.split('@')[0] ?? name;
+      if (name.length >= 2) return name;
+    }
+  }
+  return null;
+}
+
+function prettyPayee(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((w) => (w.length > 3 ? w[0]!.toUpperCase() + w.slice(1).toLowerCase() : w.toUpperCase()))
+    .join(' ')
+    .slice(0, 40);
+}
+
+/** A line only counts as a payment when it says one of these — promo
+ *  SMS ("Get flat ₹100 cashback") and OTP texts never become charges. */
+const CHARGE_VERB = /\b(paid|pay|debited|spent|charged|purchase[d]?|billed|sent|bought)\b/i;
+
+/**
+ * Parse payment text — notification bodies, bank SMS, receipt lines.
+ * Falls back to "today" for lines with an amount but no date (the shared
+ * notification of a payment that just happened). Pure and local.
+ */
+export function parsePaymentText(text: string, today: string = todayISO()): PaymentParseResult {
+  const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const charges: ParsedCharge[] = [];
+  let unparsed = 0;
+  let assumed = 0;
+
+  for (const raw of rawLines) {
+    if (!CHARGE_VERB.test(raw)) {
+      // no payment verb → promo SMS, OTP, marketing — not a charge
+      if (/₹|rs\.?\s?\d|inr\s?\d|\$\s?\d/i.test(raw)) unparsed++;
+      continue;
+    }
+    const dateHit = findDate(raw);
+    const amountHit = findAmount(dateHit ? dateHit.rest : raw);
+    if (!amountHit) {
+      unparsed++;
+      continue;
+    }
+    const rest = amountHit.rest;
+    const dateAssumed = !dateHit;
+    const payee = extractPayee(rest) ?? rest.replace(/\s{2,}/g, ' ').trim();
+    const key = normalizeMerchant(payee);
+    if (key === 'UNKNOWN') {
+      unparsed++;
+      continue;
+    }
+    const brand = brandFor(key);
+    if (dateAssumed) assumed++;
+    charges.push({
+      amount: Math.abs(amountHit.value),
+      merchant: brand?.name ?? prettyPayee(payee),
+      key,
+      date: dateHit ? dateHit.iso : today,
+      dateAssumed,
+      raw,
+    });
+  }
+
+  return { charges, unparsed, assumed };
+}
+
+/** Parse shared text and run recurrence detection over the real-dated charges. */
+export function scanSharedText(text: string, today: string = todayISO()) {
+  const parse = parsePaymentText(text, today);
+  const dated: ScannedTransaction[] = parse.charges
+    .filter((c) => !c.dateAssumed)
+    .map((c) => ({ date: c.date, amount: c.amount, merchant: c.merchant, line: 0 }));
+  return { parse, detected: detectRecurring(dated) };
+}
+
+/** One shared payment → a draft item, ready for the add dialog. */
+export function paymentDraft(c: ParsedCharge, today: string = todayISO()): Omit<MoneyDateItem, 'createdAt' | 'updatedAt'> {
+  const brand = brandFor(c.key);
+  return {
+    id: newId(),
+    kind: brand?.kind ?? 'subscription',
+    name: c.merchant,
+    costAtStake: Math.round(c.amount * 100) / 100,
+    start: c.date,
+    end: addDays(today, 30),
+    recurrence: brand ? 'monthly' : 'once',
+    customDays: undefined,
+    autoAdvance: true,
+    status: 'active',
+    notes: `From a shared payment${c.dateAssumed ? ' notification' : ` dated ${c.date}`}: "${c.raw.trim().slice(0, 120)}"`,
   };
 }
 

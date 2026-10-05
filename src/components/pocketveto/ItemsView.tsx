@@ -59,7 +59,7 @@ export function ItemsView({
   const selectedView = views.find((v) => v.id === selected) ?? null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_minmax(320px,420px)]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_minmax(320px,420px)]">
       <div>
         <div className="mb-4 flex flex-wrap gap-1.5" role="group" aria-label="Filter by kind">
           <button
@@ -93,7 +93,7 @@ export function ItemsView({
           ))}
         </div>
 
-        <div className="grid gap-3">
+        <div className="grid grid-cols-1 gap-3">
           {list.length === 0 && (
             <div className="rounded-xl border border-dashed border-ink-800 p-8 text-center text-sm leading-relaxed text-mist-500">
               Nothing here yet. Add your first money date — the streaming sub you keep

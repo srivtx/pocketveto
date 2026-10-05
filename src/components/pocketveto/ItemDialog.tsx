@@ -82,7 +82,7 @@ export interface ItemDraft {
   promoMonths: string;
 }
 
-function draftFrom(item?: MoneyDateItem | null): ItemDraft {
+function draftFrom(item?: Partial<MoneyDateItem> | null): ItemDraft {
   const kind: ItemKind = item?.kind ?? 'trial';
   return {
     id: item?.id,
@@ -109,21 +109,25 @@ export function ItemDialog({
   open,
   onOpenChange,
   editing,
+  prefill,
   onSave,
   onDelete,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editing?: MoneyDateItem | null;
+  /** Fills the form as a NEW item (e.g. a shared payment) — never edit mode. */
+  prefill?: Partial<MoneyDateItem> | null;
   onSave: (item: MoneyDateItem) => void;
   onDelete?: (id: string) => void;
 }) {
+  const source = editing ?? prefill ?? null;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[88vh] overflow-y-auto border-ink-800 bg-ink-900 shadow-2xl shadow-black/60 sm:max-w-lg">
         <ItemForm
-          key={`${open}-${editing?.id ?? 'new'}`}
-          initial={draftFrom(editing)}
+          key={`${open}-${source?.id ?? 'new'}`}
+          initial={draftFrom(source)}
           existing={editing ?? null}
           onSave={onSave}
           onDone={() => onOpenChange(false)}

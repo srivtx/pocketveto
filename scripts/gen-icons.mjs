@@ -3,9 +3,9 @@
  * Run: node scripts/gen-icons.mjs  (from the project root)
  * Outputs: public/icons/icon-192.png, icon-512.png, icon-maskable-512.png
  *
- * The mark: the intercept — a radar ring with the veto slash through it,
- * and the charge (cliff-red blip) caught exactly where the slash meets
- * the ring. Colors are the app's oklch tokens resolved to sRGB.
+ * The mark: the veto cut — a V drawn in one gesture, the returning stroke
+ * severed before it lands. The detached tip (cliff red — the charge,
+ * caught) still completes the letter. Ink tile, signal arms.
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -18,32 +18,28 @@ const INK = '#030907';
 const SIGNAL = '#1fde9e';
 const CLIFF = '#ff6367';
 
-function iconSvg(size, scale) {
-  const c = size / 2;
-  const rOuter = size * 0.345 * scale;
-  const rInner = size * 0.19 * scale;
-  const d = rOuter / Math.SQRT2; // slash reach along the diagonal
-  const swOuter = Math.max(size * 0.030, 2);
-  const swInner = Math.max(size * 0.024, 1.5);
-  const swSlash = Math.max(size * 0.047, 3);
-  const blipR = size * 0.048 * scale;
+function iconSvg(size, fraction) {
+  const k = (size * fraction) / 32; // mark scale
+  const off = (size - 32 * k) / 2; // center the 32-unit mark box
+  const r = Math.round(size * 0.234); // tile radius ≈ rx 7.5/32
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${size}" height="${size}" fill="${INK}"/>
-  <circle cx="${c}" cy="${c}" r="${rOuter}" fill="none" stroke="${SIGNAL}" stroke-opacity="0.62" stroke-width="${swOuter}"/>
-  <circle cx="${c}" cy="${c}" r="${rInner}" fill="none" stroke="${SIGNAL}" stroke-opacity="0.34" stroke-width="${swInner}"/>
-  <line x1="${c - d}" y1="${c + d}" x2="${c + d}" y2="${c - d}" stroke="${SIGNAL}" stroke-width="${swSlash}" stroke-linecap="round"/>
-  <circle cx="${c + d}" cy="${c - d}" r="${blipR}" fill="${CLIFF}"/>
+  <rect width="${size}" height="${size}" rx="${r}" fill="${INK}"/>
+  <g stroke-linecap="butt" fill="none" transform="translate(${off} ${off}) scale(${k}) translate(0.5 0)">
+    <path d="M8 7 L16 25" stroke="${SIGNAL}" stroke-width="3"/>
+    <path d="M24 7 L20.48 14.92" stroke="${SIGNAL}" stroke-width="3"/>
+    <path d="M18.24 19.96 L16 25" stroke="${CLIFF}" stroke-width="3"/>
+  </g>
 </svg>`;
 }
 
 await mkdir(OUT, { recursive: true });
-for (const [name, size, scale] of [
-  ['icon-192.png', 192, 1],
-  ['icon-512.png', 512, 1],
-  ['icon-maskable-512.png', 512, 0.78], // keep inside the maskable safe zone
+for (const [name, size, fraction] of [
+  ['icon-192.png', 192, 0.68],
+  ['icon-512.png', 512, 0.68],
+  ['icon-maskable-512.png', 512, 0.56], // keep inside the maskable safe zone
 ]) {
-  const svg = Buffer.from(iconSvg(size, scale));
+  const svg = Buffer.from(iconSvg(size, fraction));
   await writeFile(`${OUT}/${name}`, await sharp(svg).png().toBuffer());
   console.log(`wrote ${OUT}/${name}`);
 }

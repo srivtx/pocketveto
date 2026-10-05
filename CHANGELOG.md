@@ -3,6 +3,61 @@
 All notable changes to PocketVeto are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); versions follow semver.
 
+## [1.3.0] — 2026-10-05
+
+The share-target release: pay for something on your phone, share the
+notification, it's on your radar. Plus the new mark, a real nav fix, and
+a mobile layout bug hunted to its grid-spec root.
+
+### Added
+- **Web Share Target** — installed as an app, PocketVeto now appears in
+  Android's share sheet. Share a payment SMS or GPay/PhonePe
+  notification and it opens pre-parsed: `parsePaymentText` reads
+  ₹/Rs/INR/$ amounts (decimals optional with a currency marker), day-first
+  `DD-MM-YY` bank-SMS dates, payees after to/towards/for/at (UPI VPAs
+  like `sonyliv@okhdfcbank` included), strips bank tails, and rejects
+  promo/OTP texts via a payment-verb gate. One-off payments become
+  add-ready cards (prefilled dialog, saves as new); several months of
+  the same SMS thread detect cadence like a statement. 10 new tests
+  (51 total).
+- **Detection ladder research** — `docs/autodetect.md`: the honest map
+  of rung 1 (share, shipped) → inbox adapter → Android
+  NotificationListenerService companion → bank aggregation
+  (Plaid / India's Account Aggregator), plus the TWA-vs-Capacitor plan
+  for the Android app and the Play-policy constraints (SMS/Call Log
+  groups are restricted; the listener path avoids them).
+- **The veto cut** — a new brand mark: a V drawn in one gesture, the
+  returning stroke severed before it lands; the detached cliff-red tip
+  still completes the letter. One weight, squared terminals, no tile
+  clutter. Icons regenerated; favicon added (`src/app/icon.svg`).
+
+### Fixed
+- **Landing nav never arrived** — section anchors (`#problem` etc.)
+  fought the hash router: every hashchange scrolled the page back to
+  the top. Nav links now smooth-scroll without touching the hash
+  (reduced-motion aware), and the route only resets scroll on a real
+  landing↔app change. A reading-progress hairline under the sticky nav
+  ("the reel") makes the position legible at a glance.
+- **26px horizontal overflow at 390px** (latent since v1.1): truncated
+  `nowrap` item names raised their grid containers' min-content, and
+  every nested grid used implicit `auto` tracks — which the spec sizes
+  to content, unbounded by the container. All nested grids now declare
+  bounded `grid-cols-1` (minmax(0,1fr)) tracks; `document.scrollWidth`
+  is exactly the viewport again, verified by script.
+- Stat cards stack below 420px so the $-at-risk figures never squish.
+
+### Changed
+- **Cinematography pass, not glitter**: scroll reveals now rack focus
+  (a slight blur settles into sharpness), the landing↔app swap is a
+  scene dissolve with a subtle push-in, the hero radar glow breathes
+  (4.5s, ease-in-out), and every button carries a physical press state
+  (`active:scale`, disabled under reduced motion). All transform/opacity
+  or filter only; all collapsed by `prefers-reduced-motion`.
+- **Footer rebuilt** as the mark + quiet link columns (Product / Source /
+  Principles) over the honest stat-source bottom line.
+- Share + paste flows documented in the README with a fourth screenshot
+  (share-flow) and a full file map.
+
 ## [1.2.0] — 2026-10-05
 
 Autopay scan, install experience, and a hard fix to the two bugs that

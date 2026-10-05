@@ -59,11 +59,19 @@ const TABS: { id: Tab; label: string; icon: typeof RadarIcon }[] = [
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ];
 
-export function PocketVetoApp({ onExit }: { onExit: () => void }) {
+export function PocketVetoApp({
+  onExit,
+  sharedText = '',
+}: {
+  onExit: () => void;
+  /** Payment text shared into the app (Web Share Target) — opens pre-parsed. */
+  sharedText?: string;
+}) {
   const state = useItems();
-  const [tab, setTab] = useState<Tab>('radar');
+  const [tab, setTab] = useState<Tab>(sharedText ? 'scan' : 'radar');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MoneyDateItem | null>(null);
+  const [prefill, setPrefill] = useState<Partial<MoneyDateItem> | null>(null);
   const [selectedBlip, setSelectedBlip] = useState<ItemView | null>(null);
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
@@ -94,11 +102,20 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
 
   function openAdd() {
     setEditing(null);
+    setPrefill(null);
     setDialogOpen(true);
   }
 
   function openEdit(item: MoneyDateItem) {
+    setPrefill(null);
     setEditing(item);
+    setDialogOpen(true);
+  }
+
+  /** A shared single payment: fills the form, saves as a NEW item. */
+  function openPrefilled(draft: Omit<MoneyDateItem, 'createdAt' | 'updatedAt'>) {
+    setEditing(null);
+    setPrefill(draft);
     setDialogOpen(true);
   }
 
@@ -312,7 +329,7 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
 
         <div key={tab} className="pv-rise">
           {tab === 'radar' && (
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,460px)_1fr]">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,460px)_1fr]">
               <div className="rounded-2xl border border-ink-800 bg-ink-925/50 p-4">
                 <div className="relative">
                   <div className="pv-grid pv-grid-fade absolute inset-0" aria-hidden />
@@ -334,8 +351,8 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
                 </div>
               </div>
 
-              <div className="grid content-start gap-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 content-start gap-4 min-w-0">
+                <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
                   <div className="rounded-2xl border border-ink-800 bg-ink-925/50 p-5">
                     <p className="pv-num text-3xl font-semibold tracking-tight text-cliff-300">
                       {formatMoney(atRiskDisplay)}
@@ -361,7 +378,7 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
                       Nothing fires this week. The quiet weeks are for checking the radar.
                     </p>
                   ) : (
-                    <ul className="grid gap-2">
+                    <ul className="grid grid-cols-1 gap-2">
                       {state.weekItems.map((v) => (
                         <li
                           key={v.id}
@@ -430,6 +447,9 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
           {tab === 'scan' && (
             <ScanView
               items={state.items}
+              initialText={sharedText}
+              autoScan={Boolean(sharedText)}
+              onAddSingle={openPrefilled}
               onTrack={(draft) => {
                 void state.addItem(draft);
                 toast({
@@ -458,7 +478,7 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-mist-500">
           <p className="flex items-center gap-2">
             <Logo className="h-4 w-4 text-mist-500" />
-            PocketVeto v1.2.0 — local-first. Nothing leaves this device.
+            PocketVeto v1.3.0 — local-first. Nothing leaves this device.
           </p>
           <div className="flex gap-4">
             <a
@@ -480,6 +500,7 @@ export function PocketVetoApp({ onExit }: { onExit: () => void }) {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         editing={editing}
+        prefill={prefill}
         onSave={handleSave}
         onDelete={requestDelete}
       />

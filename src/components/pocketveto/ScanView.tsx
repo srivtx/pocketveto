@@ -1,11 +1,14 @@
 'use client';
 
 /**
- * PocketVeto — statement scan: find your autopays without a bank link.
+ * PocketVeto — statement & shared-payment scan: find your autopays without
+ * a bank link.
  *
- * Paste (or drop a file of) bank/card activity; the detector finds recurring
- * charges and turns them into tracked items in one tap. The text is parsed
- * entirely on-device — it never leaves the browser.
+ * Two ways in, both parsed entirely on-device:
+ *  - Paste (or drop) bank/card activity — the detector finds recurring charges.
+ *  - Share: on Android, share any payment SMS or app notification straight to
+ *    PocketVeto (installed as an app). It lands here already parsed — the
+ *    text never leaves the browser.
  */
 
 import { useMemo, useRef, useState } from 'react';
@@ -13,8 +16,10 @@ import {
   Check,
   FileUp,
   Info,
+  Plus,
   RotateCcw,
   ScanLine,
+  Share2,
   ShieldCheck,
   Trash2,
   X,
@@ -23,12 +28,16 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
   scanStatement,
+  scanSharedText,
   detectedToItem,
+  paymentDraft,
   SAMPLE_STATEMENT,
   type DetectedRecurring,
+  type ParseResult,
+  type PaymentParseResult,
+  type ParsedCharge,
 } from '@/lib/pocketveto/scan';
 import { formatMoney } from '@/lib/pocketveto/risk';
-import { countdownLabel } from '@/lib/pocketveto/dates';
 import type { MoneyDateItem } from '@/lib/pocketveto/types';
 import { KindGlyph } from './KindGlyph';
 
@@ -39,6 +48,22 @@ const CADENCE_LABEL: Record<DetectedRecurring['cadence'], string> = {
   quarterly: 'Quarterly',
   annual: 'Yearly',
 };
+
+/** Notification markers (₹ / Rs / INR / payment verbs) pick the parser. */
+const NOTIFICATION_HINT = /₹|\brs\.?\s?\d|\binr\s?\d|\b(paid|debited|spent|charged)\b/i;
+
+type ScanState =
+  | { mode: 'statement'; parse: ParseResult; detected: DetectedRecurring[] }
+  | { mode: 'shared'; parse: PaymentParseResult; detected: DetectedRecurring[] };
+
+function runScan(text: string): ScanState {
+  if (NOTIFICATION_HINT.test(text)) {
+    const { parse, detected } = scanSharedText(text);
+    return { mode: 'shared', parse, detected };
+  }
+  const { parse, detected } = scanStatement(text);
+  return { mode: 'statement', parse, detected };
+}
 
 function confidenceLabel(c: number): string {
   if (c >= 0.8) return 'High confidence';
@@ -140,15 +165,81 @@ function DetectedCard({
   );
 }
 
+function SingleChargeCard({
+  c,
+  delay,
+  onAdd,
+  onDismiss,
+}: {
+  c: ParsedCharge;
+  delay: number;
+  onAdd: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <li
+      className="pv-rise rounded-xl border border-ink-800 bg-ink-925/50 p-4 transition-colors hover:border-ink-700"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink-800 bg-ink-950 text-mist-400">
+            <KindGlyph kind="subscription" className="h-4.5 w-4.5" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-display text-base font-semibold tracking-tight text-mist-100">
+              {c.merchant}
+            </p>
+            <p className="pv-num mt-0.5 truncate text-xs text-mist-500">
+              {c.dateAssumed ? 'just now' : c.date} · from a shared notification
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="pv-num text-lg font-semibold text-cliff-300">
+            {formatMoney(c.amount)}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-ink-700 hover:bg-ink-900"
+            onClick={onAdd}
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden /> Add
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0 text-mist-500 hover:bg-ink-900 hover:text-mist-300"
+            onClick={onDismiss}
+            aria-label={`Dismiss ${c.merchant}`}
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </Button>
+        </div>
+      </div>
+    </li>
+  );
+}
+
 export function ScanView({
   items,
   onTrack,
+  initialText = '',
+  autoScan = false,
+  onAddSingle,
 }: {
   items: MoneyDateItem[];
   onTrack: (item: Omit<MoneyDateItem, 'createdAt' | 'updatedAt'>) => void;
+  /** Text shared into the app (Web Share Target) — pre-parsed on mount. */
+  initialText?: string;
+  autoScan?: boolean;
+  onAddSingle?: (item: Omit<MoneyDateItem, 'createdAt' | 'updatedAt'>) => void;
 }) {
-  const [text, setText] = useState('');
-  const [result, setResult] = useState<ReturnType<typeof scanStatement> | null>(null);
+  const [text, setText] = useState(initialText);
+  const [result, setResult] = useState<ScanState | null>(() =>
+    autoScan && initialText.trim().length >= 8 ? runScan(initialText) : null
+  );
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [tracked, setTracked] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -159,41 +250,44 @@ export function ScanView({
     [items]
   );
 
+  const detected = result?.detected ?? [];
+  const visible = detected.filter((d) => !dismissed.has(d.key));
+  const dismissedCount = detected.length - visible.length;
+
+  const singles = useMemo<ParsedCharge[]>(() => {
+    if (!result || result.mode !== 'shared' || detected.length > 0) return [];
+    const seen = new Set<string>();
+    return result.parse.charges.filter((c) => {
+      const id = `${c.key}|${c.date}|${c.amount}`;
+      if (seen.has(id) || dismissed.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }, [result, detected.length, dismissed]);
+
   const totalMonthly = useMemo(
-    () =>
-      (result?.detected ?? [])
-        .filter((d) => !dismissed.has(d.key))
-        .reduce((s, d) => s + d.monthlyCost, 0),
-    [result, dismissed]
+    () => visible.reduce((s, d) => s + d.monthlyCost, 0),
+    [visible]
   );
+
+  const shared = autoScan && initialText.trim().length >= 8;
 
   function run() {
     setError(null);
-    if (text.trim().length < 15) {
-      setError('Paste a few lines of statement activity first — or load the sample to see how it works.');
-      setResult(null);
-      return;
-    }
-    const r = scanStatement(text);
-    if (r.parse.transactions.length === 0) {
-      setError(
-        'Could not read any dated charges in that text. Each line needs a date and an amount — CSV exports and pasted activity lists both work.'
-      );
+    if (text.trim().length < 8) {
+      setError('Paste a few lines of statement activity — or share a payment notification from your phone.');
       setResult(null);
       return;
     }
     setDismissed(new Set());
     setTracked(new Set());
-    setResult(r);
+    setResult(runScan(text));
   }
 
   function track(d: DetectedRecurring) {
     onTrack(detectedToItem(d));
     setTracked((prev) => new Set(prev).add(d.key));
   }
-
-  const visible = (result?.detected ?? []).filter((d) => !dismissed.has(d.key));
-  const dismissedCount = (result?.detected ?? []).length - visible.length;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -207,11 +301,28 @@ export function ScanView({
           The scanner finds the charges that repeat, works out the cadence, and adds them
           to your radar in one tap.
         </p>
+        <p className="mt-2.5 flex items-start gap-2 text-xs leading-relaxed text-mist-400">
+          <Share2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-signal-400" strokeWidth={1.75} aria-hidden />
+          <span>
+            <span className="text-mist-200">On your phone:</span> after installing the app,
+            tap <span className="text-mist-200">Share</span> on any payment SMS or GPay/PhonePe
+            notification and pick PocketVeto — it lands here, parsed. Works with ₹, Rs, INR
+            and $ texts.
+          </span>
+        </p>
         <p className="mt-2.5 flex items-center gap-2 text-xs text-signal-400/90">
           <ShieldCheck className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
-          Runs entirely on this device — your statement never leaves the browser.
+          Runs entirely on this device — your text never leaves the browser.
         </p>
       </div>
+
+      {/* Shared banner */}
+      {shared && result && (
+        <div className="pv-rise mb-4 flex items-start gap-2.5 rounded-xl border border-signal-500/30 bg-signal-400/10 p-3.5 text-xs leading-relaxed text-signal-300">
+          <Share2 className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.75} aria-hidden />
+          Read from a shared notification — parsed on this device, uploaded nowhere.
+        </div>
+      )}
 
       {/* Input */}
       {!result && (
@@ -286,7 +397,11 @@ export function ScanView({
             <div>
               <p className="font-display text-base font-semibold tracking-tight text-mist-100">
                 {visible.length === 0
-                  ? 'No recurring charges found'
+                  ? result.mode === 'shared'
+                    ? singles.length > 0
+                      ? `${singles.length} payment${singles.length > 1 ? 's' : ''} read — nothing repeats yet`
+                      : 'No recurring charges found'
+                    : 'No recurring charges found'
                   : `${visible.length} autopay${visible.length > 1 ? 's' : ''} detected`}
                 {visible.length > 0 && (
                   <span className="pv-num ml-2 text-sm font-normal text-mist-500">
@@ -295,8 +410,12 @@ export function ScanView({
                 )}
               </p>
               <p className="pv-num mt-0.5 text-[11px] text-mist-500">
-                {result.parse.transactions.length} charges read
-                {result.parse.skipped > 0 ? ` · ${result.parse.skipped} lines skipped` : ''}
+                {result.mode === 'shared'
+                  ? `${result.parse.charges.length} payment${result.parse.charges.length === 1 ? '' : 's'} read`
+                  : `${result.parse.transactions.length} charges read`}
+                {result.mode === 'statement' && result.parse.skipped > 0
+                  ? ` · ${result.parse.skipped} lines skipped`
+                  : ''}
                 {visible.length > 0 ? ' · a year of history detects best' : ''}
               </p>
             </div>
@@ -314,13 +433,34 @@ export function ScanView({
           </div>
 
           {visible.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-ink-700 p-8 text-center text-sm leading-relaxed text-mist-400">
-              Nothing repeats in that text — no autopays here. The detector needs at
-              least two charges from the same merchant with a steady rhythm (weekly,
-              monthly, quarterly, yearly).
-            </div>
+            singles.length > 0 ? (
+              <>
+                <p className="mb-3 text-sm leading-relaxed text-mist-400">
+                  One-off payments from the shared text. Add one to start tracking it — share
+                  a few months of the same SMS thread and cadence detection kicks in
+                  automatically.
+                </p>
+                <ul className="grid grid-cols-1 gap-3">
+                  {singles.map((c, i) => (
+                    <SingleChargeCard
+                      key={`${c.key}-${c.date}-${i}`}
+                      c={c}
+                      delay={Math.min(i * 70, 420)}
+                      onAdd={() => onAddSingle?.(paymentDraft(c))}
+                      onDismiss={() => setDismissed((prev) => new Set(prev).add(`${c.key}|${c.date}|${c.amount}`))}
+                    />
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-ink-700 p-8 text-center text-sm leading-relaxed text-mist-400">
+                {result.mode === 'shared'
+                  ? 'Could not read a payment in that text. The reader looks for payment lines — "Paid ₹349 to Netflix", "Rs.349 debited … towards …" — with an amount and a payee.'
+                  : 'Nothing repeats in that text — no autopays here. The detector needs at least two charges from the same merchant with a steady rhythm (weekly, monthly, quarterly, yearly).'}
+              </div>
+            )
           ) : (
-            <ul className="grid gap-3">
+            <ul className="grid grid-cols-1 gap-3">
               {visible.map((d, i) => (
                 <DetectedCard
                   key={d.key}

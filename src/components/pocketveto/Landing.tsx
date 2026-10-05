@@ -8,13 +8,58 @@
  * voice, mono carries the data, one signal color carries the intent.
  */
 
-import { Bell, Calculator, HardDriveDownload, Radar, ScanLine, X, Crosshair } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Bell, Calculator, HardDriveDownload, Radar, ScanLine, X, Crosshair, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RadarChart } from './RadarChart';
 import { Logo } from './Logo';
 import { InstallButton } from './InstallButton';
 import { Reveal, useCountUp } from './motion';
 import type { ItemView } from '@/lib/pocketveto/types';
+
+/** Smooth-scroll to a landing section WITHOUT touching the hash — the hash
+ *  belongs to the route (landing vs app), and hashchanges scroll-fight. */
+function scrollToSection(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  el.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+}
+
+/** The reel — a 1px signal hairline tracking reading progress under the
+ *  sticky nav. scaleX only (GPU), rAF-throttled, purely functional. */
+function ScrollProgress() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const paint = () => {
+      const el = ref.current;
+      if (!el) return;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const p = max > 0 ? Math.min(1, window.scrollY / max) : 0;
+      el.style.transform = `scaleX(${p})`;
+    };
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(paint);
+    };
+    paint();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+  return (
+    <div
+      ref={ref}
+      aria-hidden
+      className="absolute bottom-[-1px] left-0 h-px w-full origin-left scale-x-0 bg-signal-400/70"
+    />
+  );
+}
 
 function demoBlip(id: string, kind: ItemView['kind'], name: string, days: number, cost: number): ItemView {
   const now = new Date().toISOString();
@@ -82,7 +127,7 @@ const FEATURES = [
   {
     icon: ScanLine,
     title: 'Autopay detection, without the bank link',
-    body: 'Paste a bank or card activity export and PocketVeto finds the charges that repeat — same merchant, steady rhythm — with cadence, next charge date and a confidence score. One tap turns each into a tracked date. The text never leaves your device.',
+    body: 'Share a payment notification from any app straight into PocketVeto, or paste a bank/card export — the on-device detector finds charges that repeat, with cadence, next charge date and a confidence score. One tap turns each into a tracked date. The text never leaves your device.',
   },
   {
     icon: Crosshair,
@@ -137,13 +182,19 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
             <Logo className="h-8 w-8 text-signal-400" />
             <span className="font-display text-lg font-semibold tracking-tight">PocketVeto</span>
             <span className="pv-num hidden rounded-full border border-ink-800 px-2 py-0.5 text-[10px] text-mist-400 sm:block">
-              v1.2
+              v1.3
             </span>
           </div>
           <nav className="hidden items-center gap-7 text-sm text-mist-400 md:flex" aria-label="Sections">
-            <a href="#problem" className="transition-colors hover:text-mist-100">The problem</a>
-            <a href="#features" className="transition-colors hover:text-mist-100">Features</a>
-            <a href="#privacy" className="transition-colors hover:text-mist-100">Privacy</a>
+            <button type="button" onClick={() => scrollToSection('problem')} className="transition-colors hover:text-mist-100">
+              The problem
+            </button>
+            <button type="button" onClick={() => scrollToSection('features')} className="transition-colors hover:text-mist-100">
+              Features
+            </button>
+            <button type="button" onClick={() => scrollToSection('privacy')} className="transition-colors hover:text-mist-100">
+              Privacy
+            </button>
             <a
               href="https://github.com/srivtx/pocketveto"
               className="transition-colors hover:text-mist-100"
@@ -166,6 +217,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
             </Button>
           </div>
         </div>
+        <ScrollProgress />
       </header>
 
       <main className="flex-1">
@@ -214,7 +266,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
             </div>
 
             <Reveal delay={180} className="relative mx-auto w-full max-w-sm">
-              <div className="absolute -inset-6 rounded-3xl bg-signal-400/5 blur-3xl" aria-hidden />
+              <div className="pv-breathe absolute -inset-6 rounded-3xl bg-signal-400/5 blur-3xl" aria-hidden />
               <div className="relative rounded-2xl border border-ink-800 bg-ink-925/90 p-4 shadow-2xl shadow-black/40">
                 <div className="mb-2 flex items-center justify-between px-1">
                   <span className="pv-label">Your radar · live preview</span>
@@ -242,7 +294,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
 
         {/* Problem */}
         <section id="problem" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 md:py-24">
-          <div className="grid gap-10 lg:grid-cols-[1.25fr_0.75fr]">
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.25fr_0.75fr]">
             <div>
               <Reveal>
                 <p className="pv-label mb-4">The problem</p>
@@ -344,7 +396,7 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
               {
                 n: '1',
                 t: 'Add the date — or don&apos;t',
-                b: 'Name it, pick the kind, set the date and what it costs you if it fires. Or paste a bank/card statement and let the scanner find your autopays for you. No bank, no email, no account.',
+                b: 'Name it, pick the kind, set the date and what it costs you if it fires. Or share a payment notification from your phone — or paste a statement — and let the scanner find your autopays for you. No bank, no email, no account.',
               },
               {
                 n: '2',
@@ -440,48 +492,74 @@ export function Landing({ onOpenApp }: { onOpenApp: () => void }) {
         </section>
       </main>
 
-      {/* Footer */}
+      {/* Footer — the mark, quiet link columns, the honest bottom line */}
       <footer className="mt-auto border-t border-ink-800/70 bg-ink-950">
-        <div className="mx-auto max-w-6xl px-4 py-12 text-sm text-mist-400">
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <div className="flex items-center gap-2.5">
-              <Logo className="h-7 w-7 text-signal-400" />
-              <p>
-                <span className="font-display font-semibold text-mist-100">PocketVeto</span> —
-                your veto before the charge posts.
+        <div className="mx-auto max-w-6xl px-4 py-14">
+          <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <Logo className="h-7 w-7 text-signal-400" />
+                <span className="font-display text-lg font-semibold tracking-tight">PocketVeto</span>
+                <span className="pv-num rounded-full border border-ink-800 px-2 py-0.5 text-[10px] text-mist-400">v1.3</span>
+              </div>
+              <p className="mt-4 max-w-xs text-sm leading-relaxed text-mist-400">
+                Your veto before the charge posts. Local-first, open source,
+                installable — the radar for every date your money moves.
               </p>
             </div>
-            <div className="flex gap-6">
-              <a
-                href="https://github.com/srivtx/pocketveto"
-                target="_blank"
-                rel="noreferrer"
-                className="transition-colors hover:text-mist-100"
-              >
-                GitHub
-              </a>
-              <button onClick={onOpenApp} className="transition-colors hover:text-mist-100">
-                Open app
-              </button>
-              <a
-                href="https://github.com/srivtx/pocketveto/blob/main/CHANGELOG.md"
-                target="_blank"
-                rel="noreferrer"
-                className="transition-colors hover:text-mist-100"
-              >
-                Changelog
-              </a>
+
+            <nav aria-label="Product">
+              <p className="pv-label mb-4">Product</p>
+              <ul className="space-y-3 text-sm text-mist-400">
+                <li><button type="button" onClick={onOpenApp} className="transition-colors hover:text-mist-100">Open the app</button></li>
+                <li><button type="button" onClick={() => scrollToSection('problem')} className="transition-colors hover:text-mist-100">The problem</button></li>
+                <li><button type="button" onClick={() => scrollToSection('features')} className="transition-colors hover:text-mist-100">Features</button></li>
+                <li><button type="button" onClick={() => scrollToSection('privacy')} className="transition-colors hover:text-mist-100">Privacy</button></li>
+              </ul>
+            </nav>
+
+            <nav aria-label="Source">
+              <p className="pv-label mb-4">Source</p>
+              <ul className="space-y-3 text-sm text-mist-400">
+                <li>
+                  <a href="https://github.com/srivtx/pocketveto" target="_blank" rel="noreferrer" className="transition-colors hover:text-mist-100">GitHub</a>
+                </li>
+                <li>
+                  <a href="https://github.com/srivtx/pocketveto/issues" target="_blank" rel="noreferrer" className="transition-colors hover:text-mist-100">Issues</a>
+                </li>
+                <li>
+                  <a href="https://github.com/srivtx/pocketveto/blob/main/CONTRIBUTING.md" target="_blank" rel="noreferrer" className="transition-colors hover:text-mist-100">Contributing</a>
+                </li>
+                <li>
+                  <a href="https://github.com/srivtx/pocketveto/blob/main/CHANGELOG.md" target="_blank" rel="noreferrer" className="transition-colors hover:text-mist-100">Changelog</a>
+                </li>
+              </ul>
+            </nav>
+
+            <div>
+              <p className="pv-label mb-4">Principles</p>
+              <ul className="space-y-3 text-sm text-mist-400">
+                <li>No bank credentials, ever</li>
+                <li>No analytics or telemetry</li>
+                <li>No server — nowhere to phone home</li>
+                <li>Plain-JSON export, yours to keep</li>
+              </ul>
             </div>
           </div>
-          <p className="mt-8 max-w-3xl text-xs leading-relaxed text-mist-500">
-            Stat sources: DealNews/uppermichiganssource unused-gift-card survey (2023,
-            $21–23B, 47% of US adults); Ohio State University Extension citing industry data
-            (2025, $90/mo average); WalletHub 2026 Deferred Interest Study via CNBC (Dec 2,
-            2025, 80% of store cards with 0% APR offers); Hiatus consumer survey via
-            GlobeNewswire (62%); Cerillion subscription-trap analysis (52% intend to cancel /
-            38% do). PocketVeto is an organizational tool, not financial advice. MIT
-            licensed.
-          </p>
+
+          <div className="mt-12 border-t border-ink-800/70 pt-6">
+            <p className="max-w-4xl text-xs leading-relaxed text-mist-500">
+              Stat sources: DealNews survey (2023, $21–23B unused gift cards, 47% of US
+              adults); Ohio State University Extension citing industry data (2025, $90/mo
+              average subscription spend); WalletHub 2026 Deferred Interest Study via CNBC
+              (80% of store cards with 0% APR carry the clawback); Hiatus consumer survey
+              via GlobeNewswire (62%); Cerillion subscription-trap analysis (52% intend to
+              cancel / 38% do). PocketVeto is an organizational tool, not financial advice.
+            </p>
+            <p className="pv-num mt-4 text-[11px] text-mist-500">
+              MIT licensed · local-first by architecture, not policy
+            </p>
+          </div>
         </div>
       </footer>
     </div>

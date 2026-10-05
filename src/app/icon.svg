@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PocketVeto favicon — the veto cut on ink. -->
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="7" fill="#030907"/>
+  <g stroke-linecap="butt" fill="none" transform="translate(0.5 0)">
+    <path d="M8 7 L16 25" stroke="#1fde9e" stroke-width="3"/>
+    <path d="M24 7 L20.48 14.92" stroke="#1fde9e" stroke-width="3"/>
+    <path d="M18.24 19.96 L16 25" stroke="#ff6367" stroke-width="3"/>
+  </g>
+</svg>

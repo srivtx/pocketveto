@@ -51,7 +51,7 @@ export function SavedView({ items }: { items: MoneyDateItem[] }) {
           warranty before it lapses, then mark it done.
         </div>
       ) : (
-        <div className="grid gap-3">
+        <div className="grid grid-cols-1 gap-3">
           {closed.map((item, i) => (
             <div
               key={item.id}
@@ -139,7 +139,7 @@ export function SettingsView({
   }
 
   return (
-    <div className="grid max-w-2xl gap-6">
+    <div className="grid max-w-2xl grid-cols-1 gap-6">
       <section className="rounded-2xl border border-ink-800 bg-ink-925/40 p-6">
         <h3 className="mb-1.5 flex items-center gap-2.5 text-sm font-semibold text-mist-100">
           <BellRing className="h-4 w-4 text-signal-400" strokeWidth={1.75} aria-hidden /> Alerts

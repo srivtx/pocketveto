@@ -173,9 +173,12 @@
 }
 
 @keyframes pv-rise {
+  /* the focus pull — content arrives slightly out of focus and settles
+     into sharpness, like a camera racking focus onto the subject */
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(14px) scale(0.995);
+    filter: blur(7px);
   }
   to {
     opacity: 1;
@@ -186,6 +189,29 @@
 @keyframes pv-fade {
   from {
     opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* the scene change — landing ↔ app swaps like a cut with a subtle push-in,
+   not a hard swap */
+@keyframes pv-scene {
+  from {
+    opacity: 0;
+    transform: scale(1.012);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* the instrument breathes — a slow light pulse, nothing strobes */
+@keyframes pv-breathe {
+  from {
+    opacity: 0.5;
   }
   to {
     opacity: 1;
@@ -234,6 +260,14 @@
 
 .pv-fade {
   animation: pv-fade var(--pv-t) linear both;
+}
+
+.pv-scene {
+  animation: pv-scene 340ms var(--pv-ease) both;
+}
+
+.pv-breathe {
+  animation: pv-breathe 4.5s ease-in-out infinite alternate;
 }
 
 .pv-pop {
