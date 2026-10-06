@@ -68,6 +68,44 @@ To prove detection works on your phone:
    should land in **Scan → Captures** within moments, badge and all.
 4. The row also shows a live count of captures waiting.
 
+## When Android turns it back off (v1.5.3)
+
+You flip the Notification access switch on, everything works, and some
+days later it looks like the permission is gone again. This is not
+PocketVeto losing the grant — it is documented Android behavior:
+
+- **Installing an app update silently unbinds a granted
+  NotificationListenerService.** Every sideloaded PocketVeto release
+  lands in this state. Worse, the settings toggle can stay *on* while
+  nothing is delivered — so "on" alone was never honest proof that
+  captures were flowing.
+- Force-stopping the app, some OEM battery sweeps (MIUI *Autostart*
+  off, Samsung putting the app to sleep) and a few update paths on
+  older Androids do the same thing.
+
+What v1.5.3 does about it:
+
+1. **Self-healing:** every time you bring the app to the front,
+   the native shell checks whether the grant is on record but the
+   engine hasn't been bound since this app version was installed —
+   and calls `NotificationListenerService.requestRebind()` (the
+   system API for exactly this state). Capture comes back with no
+   prompts, no settings trip, usually before you notice.
+2. **Honest status:** Settings and the Scan card show three states —
+   *On · live*, *On · idle* (amber, with a one-tap **Wake capture**),
+   and *Off*. No more silent failure between the toggle and the truth.
+3. **Never a gate:** the app is fully usable with capture off — paste,
+   share and manual entry all keep working, queued captures stay
+   reviewable, and the capture card's *Not now* collapses it for the
+   visit. The alerts banner's *Later* is remembered too.
+
+If **Wake capture** doesn't stick, an OEM battery manager is holding
+the binding: MIUI users set PocketVeto to *Autostart* on and *No
+battery restrictions*; Samsung users remove it from *Sleeping apps*.
+The switch itself being *off* means the grant is genuinely gone — one
+trip to the system screen flips it back, and the self-heal keeps it
+flipped after every future update.
+
 ## Why the web alone can't do it
 
 A browser tab — installed PWA included — is sandboxed away from other

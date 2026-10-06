@@ -25,6 +25,7 @@ import {
   BellPlus,
   Trash2,
   Wallet,
+  Zap,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,7 @@ import {
   pullCaptures,
   capturesToText,
   sourceLabel,
+  requestListenerRebind,
   type NativeStatusLive,
   type NativeCapture,
 } from '@/lib/pocketveto/native';
@@ -309,7 +311,16 @@ export function ScanView({
   const [phoneCaptures, setPhoneCaptures] = useState<NativeCapture[] | null>(null);
   /** This session's ledger writes: what was saved, what was skipped. */
   const [recordOutcome, setRecordOutcome] = useState<RecordOutcome | null>(null);
+  /** "Not now" on the phone-capture card — collapses it for this visit.
+   *  The card is never a gate: the whole app works with capture off. */
+  const [captureCardDismissed, setCaptureCardDismissed] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  /* Granted-but-unbound listener: Android drops the binding after every
+     app update (and after force-stops / OEM battery sweeps) while the
+     settings toggle can stay on. Old bridges degrade notifAlive to the
+     toggle reading, so this state simply never shows there. */
+  const captureIdle = Boolean(native?.available && native.notifEnabled && !native.notifAlive);
 
   const existingNames = useMemo(
     () => new Set(items.map((i) => i.name.trim().toUpperCase())),
@@ -413,6 +424,27 @@ export function ScanView({
     native?.refresh();
   }
 
+  /** One-tap wake for the granted-but-unbound listener (Android drops
+      the binding after app updates). The rebind settles asynchronously —
+      poll a couple of times so the card flips on its own when the system
+      reconnects the listener. */
+  function wakeCapture() {
+    const b = getNativeBridge();
+    if (!b) return;
+    if (requestListenerRebind(b) === 'switch-off') {
+      // The grant itself is gone (or the bridge is older than rebind):
+      // the system settings screen is the only honest fix — deep-link.
+      try {
+        b.openNotifAccess();
+      } catch {
+        /* fail soft — the Settings rows offer the same jump */
+      }
+      return;
+    }
+    setTimeout(() => native?.refresh(), 700);
+    setTimeout(() => native?.refresh(), 1800);
+  }
+
   function run() {
     setError(null);
     if (text.trim().length < 8) {
@@ -462,57 +494,112 @@ export function ScanView({
         </p>
       </div>
 
-      {/* Phone capture — only inside the Android shell */}
-      {native?.available && (
-        <div className="pv-rise mb-5 rounded-2xl border border-signal-500/25 bg-signal-400/[0.06] p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="flex items-center gap-2 text-sm font-semibold text-mist-100">
-              <Smartphone className="h-4 w-4 text-signal-400" strokeWidth={1.75} aria-hidden />
-              Phone capture
+      {/* Phone capture — only inside the Android shell. Three honest
+          states: live, granted-but-unbound (the OS drops the binding after
+          app updates — one tap wakes it, nothing is lost), or off (never a
+          gate: "Not now" collapses the card; the app is fully usable). */}
+      {native?.available &&
+        (captureCardDismissed && !native.notifEnabled ? (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-800 bg-ink-925 px-4 py-2.5">
+            <p className="text-xs text-mist-500">
+              Phone capture is off — everything else keeps working; turn it on whenever.
             </p>
-            {native.pendingCount > 0 && (
-              <span className="pv-num relative flex items-center gap-2 rounded-full bg-signal-400/15 px-3 py-1 text-xs font-semibold text-signal-400">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="pv-ping absolute inline-flex h-full w-full rounded-full bg-signal-400" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-signal-400" />
+            <button
+              type="button"
+              className="rounded-md px-2 py-1 text-xs font-medium text-signal-400 transition-colors hover:bg-signal-400/10 hover:text-signal-300"
+              onClick={() => setCaptureCardDismissed(false)}
+            >
+              Show the card
+            </button>
+          </div>
+        ) : (
+          <div
+            className={`pv-rise mb-5 rounded-2xl border p-4 ${
+              captureIdle
+                ? 'border-warn-400/40 bg-warn-400/[0.07]'
+                : 'border-signal-500/25 bg-signal-400/[0.06]'
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="flex items-center gap-2 text-sm font-semibold text-mist-100">
+                <Smartphone
+                  className={`h-4 w-4 ${captureIdle ? 'text-warn-400' : 'text-signal-400'}`}
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+                Phone capture
+              </p>
+              {native.pendingCount > 0 && (
+                <span className="pv-num relative flex items-center gap-2 rounded-full bg-signal-400/15 px-3 py-1 text-xs font-semibold text-signal-400">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="pv-ping absolute inline-flex h-full w-full rounded-full bg-signal-400" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-signal-400" />
+                  </span>
+                  {native.pendingCount} captured
                 </span>
-                {native.pendingCount} captured
-              </span>
-            )}
+              )}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {captureIdle ? (
+                <Button
+                  size="sm"
+                  className="bg-warn-400 font-semibold text-ink-950 hover:bg-warn-300"
+                  onClick={wakeCapture}
+                >
+                  <Zap className="h-4 w-4" aria-hidden /> Wake capture
+                </Button>
+              ) : native.notifEnabled ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-500/40 bg-signal-400/10 px-3 py-1.5 text-xs text-signal-300">
+                  <Check className="h-3.5 w-3.5" strokeWidth={2} aria-hidden /> Notification access on
+                </span>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
+                    onClick={() => getNativeBridge()?.openNotifAccess()}
+                  >
+                    <BellPlus className="h-4 w-4" aria-hidden /> Allow notification capture
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-mist-400"
+                    onClick={() => setCaptureCardDismissed(true)}
+                  >
+                    Not now
+                  </Button>
+                </>
+              )}
+              {(native.notifEnabled || native.pendingCount > 0) && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-mist-300"
+                  onClick={reviewPhoneCaptures}
+                >
+                  <ScanLine className="h-4 w-4" aria-hidden />
+                  Review captured payments{native.pendingCount > 0 ? ` (${native.pendingCount})` : ''}
+                </Button>
+              )}
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-mist-500">
+              {captureIdle ? (
+                <>
+                  Android unbound the capture engine — it does this after every app update, and
+                  the switch can even stay on. Nothing is lost: one tap re-binds it, and
+                  PocketVeto also tries on its own each time you open the app.
+                </>
+              ) : (
+                <>
+                  Captures the raw text of payment notifications (PhonePe, GPay, banks — anything
+                  with a money line) on this device only. Promo and OTP junk is rejected by the
+                  parser; nothing is ever uploaded.
+                </>
+              )}
+            </p>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {native.notifEnabled ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-500/40 bg-signal-400/10 px-3 py-1.5 text-xs text-signal-300">
-                <Check className="h-3.5 w-3.5" strokeWidth={2} aria-hidden /> Notification access on
-              </span>
-            ) : (
-              <Button
-                size="sm"
-                className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
-                onClick={() => getNativeBridge()?.openNotifAccess()}
-              >
-                <BellPlus className="h-4 w-4" aria-hidden /> Allow notification capture
-              </Button>
-            )}
-            {native.notifEnabled && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-mist-300"
-                onClick={reviewPhoneCaptures}
-              >
-                <ScanLine className="h-4 w-4" aria-hidden />
-                Review captured payments{native.pendingCount > 0 ? ` (${native.pendingCount})` : ''}
-              </Button>
-            )}
-          </div>
-          <p className="mt-3 text-xs leading-relaxed text-mist-500">
-            Captures the raw text of payment notifications (PhonePe, GPay, banks — anything
-            with a money line) on this device only. Promo and OTP junk is rejected by the
-            parser; nothing is ever uploaded.
-          </p>
-        </div>
-      )}
+        ))}
 
       {/* Captured-from-phone banner */}
       {result?.origin === 'phone' && (

@@ -85,7 +85,26 @@ export function PocketVetoApp({
   /** Payee key of a single-charge prefill — links ledger payments on save. */
   const pendingLinkKey = useRef<string | null>(null);
   const [selectedBlip, setSelectedBlip] = useState<ItemView | null>(null);
-  const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  /* "Later" on the alerts nudge is remembered — a banner that returns on
+     every cold start is a nag, not a courtesy, and the app must always be
+     usable as-is. The Settings page keeps the enable path forever, so
+     nothing is lost by the banner staying quiet. */
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem('pv.alerts.nudge.v1') === 'later';
+    } catch {
+      return false; /* storage blocked — session-only dismissal */
+    }
+  });
+  function dismissNudge() {
+    setNudgeDismissed(true);
+    try {
+      localStorage.setItem('pv.alerts.nudge.v1', 'later');
+    } catch {
+      /* storage blocked — the in-memory dismissal still holds */
+    }
+  }
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
 
   const atRiskDisplay = useCountUp(state.atRisk);
@@ -342,7 +361,7 @@ export function PocketVetoApp({
                 className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
                 onClick={async () => {
                   await requestPermission();
-                  setNudgeDismissed(true);
+                  dismissNudge();
                 }}
               >
                 Enable
@@ -351,7 +370,7 @@ export function PocketVetoApp({
                 size="sm"
                 variant="ghost"
                 className="text-mist-400"
-                onClick={() => setNudgeDismissed(true)}
+                onClick={dismissNudge}
               >
                 Later
               </Button>

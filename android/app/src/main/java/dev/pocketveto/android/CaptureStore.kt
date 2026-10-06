@@ -22,8 +22,25 @@ class CaptureStore(context: Context) {
 
     companion object {
         private const val KEY = "queue"
+        private const val BIND_KEY = "lastBindTs"
         private const val CAP = 60
         private const val DAY_MS = 86_400_000L
+    }
+
+    /**
+     * Epoch ms of the last moment the system actually BOUND the payment
+     * listener (0 = never). The bridge compares this against the app's
+     * install time: Android documents a behavior where updating an app
+     * silently unbinds a granted NotificationListenerService — the toggle
+     * can stay "on" while no notification is ever delivered again. A stale
+     * timestamp is exactly that state, and is what triggers the re-bind.
+     */
+    fun lastBindTs(): Long = prefs.getLong(BIND_KEY, 0L)
+
+    /** Called from PaymentListenerService.onListenerConnected — the only
+     *  proof that captures are really flowing. */
+    fun markListenerBound() {
+        prefs.edit().putLong(BIND_KEY, System.currentTimeMillis()).commit()
     }
 
     private fun read(): JSONArray {

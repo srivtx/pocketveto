@@ -19,6 +19,17 @@ import android.service.notification.StatusBarNotification
  */
 class PaymentListenerService : NotificationListenerService() {
 
+    override fun onListenerConnected() {
+        // The system is really handing us notifications right now — record
+        // the moment. The bridge compares this against the app's install
+        // time: when Android silently unbinds a granted listener after an
+        // app update (documented, much-hated behavior — the settings toggle
+        // can even stay "on" while nothing is delivered), this timestamp
+        // goes stale and MainActivity re-requests the binding the next time
+        // the app comes to the front.
+        CaptureStore(applicationContext).markListenerBound()
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         if (sbn == null) return
         val pkg = sbn.packageName ?: return
@@ -48,5 +59,12 @@ class PaymentListenerService : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         /* captures are kept — removal of a notification means nothing here */
+    }
+
+    override fun onListenerDisconnected() {
+        /* Nothing to clean: the queue persists, and the re-bind logic lives
+           in MainActivity (it runs whenever the app returns to the front).
+           The last-bind timestamp is deliberately NOT cleared — it is the
+           evidence the bridge compares against the app's install time. */
     }
 }

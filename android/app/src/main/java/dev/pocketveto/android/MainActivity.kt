@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.service.notification.NotificationListenerService
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -102,6 +103,52 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         webView.destroy()
         super.onDestroy()
+    }
+
+    /* ---------------- listener life support ---------------- */
+
+    /** Epoch ms when THIS app version was installed — every sideloaded
+     *  update bumps it. Compare with CaptureStore.lastBindTs() to detect
+     *  the silent unbind below. */
+    private fun lastUpdateTime(): Long =
+        packageManager.getPackageInfo(packageName, 0).lastUpdateTime
+
+    /** True when the user's grant exists AND the listener has actually
+     *  been bound at least once since the current app version was
+     *  installed — the only honest definition of "captures are flowing". */
+    private fun listenerAlive(): Boolean =
+        notifAccessGranted() && CaptureStore(this).lastBindTs() >= lastUpdateTime()
+
+    /**
+     * THE fix for "the OS removes it": Android documents that updating an
+     * app silently unbinds — and on many builds disables — a granted
+     * NotificationListenerService (force-stops and aggressive OEM battery
+     * policies do the same). The settings toggle can even stay "on" while
+     * nothing is ever delivered again, so it looks like the permission
+     * keeps vanishing on its own.
+     *
+     * The system-provided escape is NotificationListenerService.requestRebind:
+     * with the user's grant still on record it re-enables and re-binds the
+     * component with no user action and no prompts. Called every time the
+     * app comes to the front — a no-op when the binding is already current,
+     * the fix when it isn't. Runs even when this activity has no UI yet.
+     */
+    private fun maybeRebindListener() {
+        if (!notifAccessGranted()) return // nothing to rebind — the honest
+        // off state is handled by the settings deep-link, never by nagging.
+        if (listenerAlive()) return // binding is current — nothing to do.
+        try {
+            NotificationListenerService.requestRebind(
+                ComponentName(this, PaymentListenerService::class.java)
+            )
+        } catch (_: Exception) {
+            // fail soft: the deep-link path in settings still works.
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        maybeRebindListener()
     }
 
     /* ---------------- alert plumbing ---------------- */
@@ -204,6 +251,30 @@ class MainActivity : Activity() {
 
         @JavascriptInterface
         fun notifEnabled(): Boolean = notifAccessGranted()
+
+        /** v1.5.3: grant exists AND the listener has actually been bound
+         *  since the current app version was installed. A granted-but-dead
+         *  listener (the silent OS unbind) reads false — the web layer then
+         *  offers a one-tap wake instead of sending the user to settings. */
+        @JavascriptInterface
+        fun notifAlive(): Boolean = listenerAlive()
+
+        /** v1.5.3: manual wake. True = the grant is on record and a rebind
+         *  was requested (the state settles asynchronously — the web layer
+         *  re-polls). False = the switch itself is off: the only honest fix
+         *  is the system settings screen, never a rebind. */
+        @JavascriptInterface
+        fun rebindCapture(): Boolean {
+            if (!notifAccessGranted()) return false
+            try {
+                NotificationListenerService.requestRebind(
+                    ComponentName(this, PaymentListenerService::class.java)
+                )
+            } catch (_: Exception) {
+                // the request may still have landed — report attempted.
+            }
+            return true
+        }
 
         /** Opens the system "Notification access" settings page. */
         @JavascriptInterface

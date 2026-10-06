@@ -4,6 +4,47 @@ All notable changes to PocketVeto are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/).
 
+## [1.5.3] — 2026-10-07
+
+### Fixed — "the OS removes it": the notification-access lifecycle
+- **The real reason the permission kept vanishing.** Android documents
+  that updating an app silently unbinds — and on many builds disables —
+  a granted `NotificationListenerService`; force-stops and OEM battery
+  sweeps do the same. The settings toggle can even stay "on" while
+  nothing is ever delivered again. Installing every new PocketVeto
+  release therefore kept "removing" a permission the user had already
+  granted. No manifest change can prevent this — the fix is to recover
+  from it.
+- **PocketVeto now re-binds the engine by itself.** Every time the app
+  comes to the front, `MainActivity` checks whether the user's grant is
+  on record but the listener has not been bound since the current app
+  version was installed — and if so calls
+  `NotificationListenerService.requestRebind()`, the system API made
+  for exactly this state. Restores capture with no prompts and no
+  settings hunting; a no-op when the binding is already alive.
+- **Honest three-state status.** The bridge reports `notifAlive()`
+  (grant AND bound since this install) alongside `notifEnabled()`
+  (the toggle), so the Scan card and Settings can show *On · live*,
+  *On · idle — Wake capture* (one tap, settles in about a second), or
+  *Off* — instead of claiming "on" while the engine is dead.
+- Old APK bridges degrade gracefully: a v1.5.2 bridge lacking the new
+  methods keeps working and simply never shows the idle state.
+
+### Changed — the app is never held hostage to the permission
+- The phone-capture card gains **Not now** (collapses to a slim line
+  for the visit) and shows **Wake capture** in amber for the
+  granted-but-idle state. "Review captured payments" stays available
+  whenever captures are actually waiting — even with access off, your
+  queued payments are never locked away.
+- The alerts nudge's **Later is now remembered** (`localStorage`) —
+  a banner that returns on every cold start is a nag, not a courtesy.
+  Settings keeps the enable path forever.
+- Settings' Notification access row spells out the unbind behavior,
+  the automatic re-wake, and the OEM battery managers that can hold
+  the binding down (MIUI *Autostart*, Samsung *Sleeping apps*).
+- 8 new tests pin the lifecycle (113 total): the silent-unbind status
+  reading, old-bridge degradation, and every rebind outcome.
+
 ## [1.5.2] — 2026-10-06
 
 ### Added — the Copilot PR, reviewed and properly ported

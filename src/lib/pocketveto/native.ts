@@ -20,6 +20,18 @@
  * vocabulary, so every consumer (nudge banner, settings, reminders)
  * works unchanged in both worlds.
  *
+ * v1.5.3: the bridge grew the listener-lifecycle half. Android
+ * documents that updating an app silently unbinds a granted
+ * NotificationListenerService (force-stops and OEM battery policies do
+ * the same), so "the toggle is on" stopped being an honest definition
+ * of "captures are flowing": notifAlive() tells the web layer whether
+ * the listener has actually been bound since this app version was
+ * installed, and rebindCapture() wakes it with one tap. MainActivity
+ * also re-requests the binding on its own every time the app comes to
+ * the front — the user should rarely ever see the wake state at all.
+ * Bridges from v1.5.2 and earlier lack both methods and keep working:
+ * missing notifAlive degrades to the old toggle-only reading.
+ *
  * Rules the whole bridge obeys:
  *  - Server renders never touch it (hydration stays deterministic).
  *  - Every read is defensive — a malformed entry is skipped, never thrown.
@@ -46,6 +58,12 @@ interface NativeBridgeShape {
   /** JSON array of captures; drains the native queue. */
   takeCaptured(): string;
   notifEnabled(): boolean;
+  /** v1.5.3: the grant exists AND the listener has been bound since this
+   *  app version was installed (false = the OS silently unbound it). */
+  notifAlive(): boolean;
+  /** v1.5.3: one-tap wake of a granted-but-dead listener. False = the
+   *  switch itself is off — the settings deep-link is the only fix. */
+  rebindCapture(): boolean;
   openNotifAccess(): void;
   /** True when this app's own reminders can post (Android 13+ runtime grant
    *  or the per-app notification toggle). */
@@ -112,6 +130,43 @@ export function capturesToText(captures: NativeCapture[]): string {
 }
 
 /* ------------------------------------------------------------------ */
+/* Listener lifecycle — v1.5.3. Android silently unbinds a granted
+   NotificationListenerService after app updates (force-stops and OEM
+   battery sweeps do the same), so "the toggle is on" stopped being
+   honest proof that captures are flowing. The pure helpers below are
+   shared by the status hook and every wake button, and pinned by tests. */
+
+/** Snapshot the bridge state. Bridges from v1.5.2 and earlier lack
+ *  notifAlive — it degrades to the toggle reading so older installs
+ *  keep working unchanged. Throws only when the bridge throws; callers
+ *  then keep their last snapshot. */
+export function readNativeStatus(b: NativeBridgeShape): NativeStatus {
+  return {
+    available: true,
+    notifEnabled: b.notifEnabled(),
+    notifAlive: typeof b.notifAlive === 'function' ? b.notifAlive() : b.notifEnabled(),
+    pendingCount: b.captureCount(),
+    alertsEnabled: typeof b.alertsEnabled === 'function' ? b.alertsEnabled() : false,
+  };
+}
+
+/** Ask the system to re-bind a granted-but-dead listener.
+ *  'requested' = the grant is on record and a rebind was asked for
+ *  (it settles asynchronously — poll after a beat);
+ *  'switch-off' = the toggle itself is off, or the bridge predates
+ *  rebindCapture — the system settings screen is the only honest fix. */
+export function requestListenerRebind(
+  b: NativeBridgeShape
+): 'requested' | 'switch-off' {
+  try {
+    if (typeof b.rebindCapture === 'function' && b.rebindCapture()) return 'requested';
+  } catch {
+    /* fall through — a throwing bridge reads as switch-off */
+  }
+  return 'switch-off';
+}
+
+/* ------------------------------------------------------------------ */
 /* Status hook — the app's client-only-data pattern (async load + alive
    guard, refresh on window focus, i.e. when the user returns from the
    system permission screens). Server snapshot: not available. */
@@ -120,6 +175,9 @@ export interface NativeStatus {
   /** True only inside the Android shell. */
   available: boolean;
   notifEnabled: boolean;
+  /** v1.5.3: grant on AND listener actually bound since this app version
+   *  was installed — the honest "captures are flowing" bit. */
+  notifAlive: boolean;
   pendingCount: number;
   /** True when the app's own reminder alerts can post (native bridge). */
   alertsEnabled: boolean;
@@ -131,6 +189,7 @@ export type NativeStatusLive = NativeStatus & { refresh: () => void };
 const NATIVE_IDLE: NativeStatus = {
   available: false,
   notifEnabled: false,
+  notifAlive: false,
   pendingCount: 0,
   alertsEnabled: false,
 };
@@ -142,13 +201,7 @@ export function useNativeStatus() {
     const b = getNativeBridge();
     if (!b) return;
     try {
-      setStatus({
-        available: true,
-        notifEnabled: b.notifEnabled(),
-        pendingCount: b.captureCount(),
-        // v1.4.3 APKs lack the method — a missing bridge method reads as off.
-        alertsEnabled: typeof b.alertsEnabled === 'function' ? b.alertsEnabled() : false,
-      });
+      setStatus(readNativeStatus(b));
     } catch {
       /* a bridge that throws mid-read stays at its last known state */
     }

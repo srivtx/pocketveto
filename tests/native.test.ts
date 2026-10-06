@@ -11,6 +11,8 @@ import {
   pullCaptures,
   capturesToText,
   sourceLabel,
+  readNativeStatus,
+  requestListenerRebind,
 } from '@/lib/pocketveto/native';
 import { scanSharedText } from '@/lib/pocketveto/scan';
 
@@ -96,6 +98,73 @@ describe('captures → parser round trip', () => {
     // two same-amount debits a month apart → cadence detection engages
     expect(detected.length).toBeGreaterThanOrEqual(1);
     expect(detected[0].cadence).toBe('monthly');
+  });
+});
+
+describe('listener lifecycle — v1.5.3 (the OS-unbind fix)', () => {
+  test('readNativeStatus: the silent unbind reads enabled-but-not-alive', () => {
+    // The exact state Android leaves behind after an app update: the
+    // settings toggle still on, the listener never bound again.
+    installBridge({
+      notifEnabled: () => true,
+      notifAlive: () => false,
+      captureCount: () => 3,
+    });
+    expect(readNativeStatus(getNativeBridge()!)).toMatchObject({
+      available: true,
+      notifEnabled: true,
+      notifAlive: false,
+      pendingCount: 3,
+    });
+  });
+
+  test('readNativeStatus: healthy listener reads alive', () => {
+    installBridge({
+      notifEnabled: () => true,
+      notifAlive: () => true,
+      captureCount: () => 0,
+    });
+    const s = readNativeStatus(getNativeBridge()!);
+    expect(s.notifEnabled).toBe(true);
+    expect(s.notifAlive).toBe(true);
+  });
+
+  test('readNativeStatus: old bridges (≤ v1.5.2) degrade notifAlive to the toggle reading', () => {
+    installBridge({ notifEnabled: () => true, captureCount: () => 1 });
+    expect(readNativeStatus(getNativeBridge()!).notifAlive).toBe(true);
+  });
+
+  test('readNativeStatus: a bridge throwing mid-read propagates (hook keeps last snapshot)', () => {
+    installBridge({
+      notifEnabled: () => {
+        throw new Error('native hiccup');
+      },
+    });
+    expect(() => readNativeStatus(getNativeBridge()!)).toThrow();
+  });
+
+  test('requestListenerRebind: requested when the grant is on record', () => {
+    installBridge({ rebindCapture: () => true });
+    expect(requestListenerRebind(getNativeBridge()!)).toBe('requested');
+  });
+
+  test('requestListenerRebind: switch-off when the grant itself is gone', () => {
+    installBridge({ rebindCapture: () => false });
+    expect(requestListenerRebind(getNativeBridge()!)).toBe('switch-off');
+  });
+
+  test('requestListenerRebind: old bridges land on the deep-link path, never throw', () => {
+    installBridge({});
+    expect(requestListenerRebind(getNativeBridge()!)).toBe('switch-off');
+  });
+
+  test('requestListenerRebind: a throwing bridge reads as switch-off', () => {
+    installBridge({
+      rebindCapture: () => {
+        throw new Error('native hiccup');
+      },
+    });
+    expect(requestListenerRebind(getNativeBridge()!)).toBe('switch-off');
   });
 });
 

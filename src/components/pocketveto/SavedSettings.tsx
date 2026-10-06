@@ -36,6 +36,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +53,11 @@ import {
 import type { MoneyDateItem } from '@/lib/pocketveto/types';
 import { formatMoney } from '@/lib/pocketveto/risk';
 import { permissionState, requestPermission, fireNotification } from '@/lib/pocketveto/notifications';
-import { getNativeBridge, type NativeStatusLive } from '@/lib/pocketveto/native';
+import {
+  getNativeBridge,
+  requestListenerRebind,
+  type NativeStatusLive,
+} from '@/lib/pocketveto/native';
 import { runDetectionSelfTest, type SelfTestResult } from '@/lib/pocketveto/selftest';
 import { APP_VERSION } from '@/lib/pocketveto/version';
 import { toast } from '@/hooks/use-toast';
@@ -176,6 +181,10 @@ export function SettingsView({
 
   const inApp = Boolean(native?.available);
   const notifOn = Boolean(native?.notifEnabled);
+  /** Granted AND actually bound since this app version was installed —
+   *  Android silently unbinds listeners after app updates, so "on" alone
+   *  stopped being honest proof that captures are flowing. */
+  const notifLive = Boolean(native?.notifEnabled && native?.notifAlive);
   /** Alerts truth: native bridge inside the APK, web permission outside. */
   const alertsOn = inApp ? Boolean(native?.alertsEnabled) : perm === 'granted';
 
@@ -250,6 +259,36 @@ export function SettingsView({
     });
   }
 
+  /** Wake the granted-but-unbound listener (the post-update unbind).
+      One tap asks the system to re-bind; the row settles when the
+      listener reconnects and the status poll picks it up. */
+  function wakeCapture() {
+    const b = getNativeBridge();
+    if (!b) return;
+    if (requestListenerRebind(b) === 'switch-off') {
+      // The switch itself is off (or the bridge predates rebindCapture) —
+      // the system screen is the only honest fix. Deep-link and say so.
+      try {
+        b.openNotifAccess();
+      } catch {
+        /* fail soft */
+      }
+      toast({
+        title: 'The switch is off',
+        description:
+          'In system settings, find PocketVeto in the Notification access list and turn its toggle on — that one switch feeds detection.',
+      });
+      return;
+    }
+    toast({
+      title: 'Waking capture',
+      description:
+        'Asking Android to re-bind the engine. This row flips back to live the moment the system reconnects it — usually a second.',
+    });
+    setTimeout(() => native?.refresh(), 700);
+    setTimeout(() => native?.refresh(), 1800);
+  }
+
   function download() {
     const blob = new Blob([onExport()], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -283,13 +322,22 @@ export function SettingsView({
             <Row
               title="Notification access"
               support={
-                notifOn
-                  ? 'Live — payment notifications from PhonePe, GPay, Paytm, banks and card apps are being captured on this phone.'
-                  : "The one switch that feeds detection. Open system settings, find PocketVeto in the list, turn its toggle ON. Stock Android calls this screen 'Notification access' (Settings → Special app access); Samsung calls it 'Device & app notifications'."
+                notifLive
+                  ? 'Live — payment notifications from PhonePe, GPay, Paytm, banks and card apps are being captured on this phone. PocketVeto also re-binds the engine on its own every time you open the app, so an OS unbind never silently stops detection.'
+                  : notifOn
+                    ? "The switch is on, but Android unbound the engine — it does this after every app update (and after force-stops or battery sweeps), while the toggle can stay on. Nothing is lost: Wake re-binds it in one tap, and PocketVeto also tries automatically each time you open the app. If Wake doesn't stick, some OEM battery managers (MIUI 'Autostart', Samsung 'Sleeping apps') are holding it — set PocketVeto to unrestricted there."
+                    : "The one switch that feeds detection. Open system settings, find PocketVeto in the list, turn its toggle ON. Stock Android calls this screen 'Notification access' (Settings → Special app access); Samsung calls it 'Device & app notifications'. The app stays fully usable without it — Paste and Share keep working."
               }
             >
-              {notifOn ? (
-                <Chip tone="on">On</Chip>
+              {notifLive ? (
+                <Chip tone="on">On · live</Chip>
+              ) : notifOn ? (
+                <>
+                  <Chip tone="off">On · idle</Chip>
+                  <Button size="sm" className={solidBtn} onClick={wakeCapture}>
+                    <Zap className="h-4 w-4" aria-hidden /> Wake capture
+                  </Button>
+                </>
               ) : (
                 <>
                   <Chip tone="off">Off</Chip>
