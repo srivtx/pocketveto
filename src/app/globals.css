@@ -157,6 +157,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* App feel: no rubber-band / pull-to-refresh at the scroll ends —
+       a phone app doesn't bounce, and the app shell owns the viewport. */
+    overscroll-behavior-y: none;
   }
 }
 
@@ -271,8 +274,16 @@
    insulated by their own subtree; hand-rolled overlays must isolate
    themselves. See Welcome.tsx / PocketVetoApp.tsx. */
 
+/* ⚠ Fill-mode trap (bit us twice): this animation must fill BACKWARDS
+   only. Holding the end keyframe after completion leaves an identity
+   transform on the scene, and ANY transform — even identity — makes the
+   scene the containing block for every fixed-position descendant (bottom
+   nav, FAB, toasts, the tutorial). Those then anchor to the scene's box
+   instead of the viewport and render off-screen (v1.4.2's "tutorial
+   taller than the screen" / invisible bottom nav). Backwards fill lets
+   the element return to its natural transform: none. */
 .pv-scene {
-  animation: pv-scene 340ms var(--pv-ease) both;
+  animation: pv-scene 340ms var(--pv-ease) backwards;
 }
 
 .pv-breathe {
@@ -306,6 +317,16 @@
 }
 
 /* ---- Texture + chrome -------------------------------------------------- */
+
+/* Native-app feel for the shell furniture (app bar, nav bars, FAB): no
+   tap flash, no accidental long-press selection. Content stays fully
+   selectable — the data belongs to the user, the chrome doesn't. */
+.pv-chrome {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
 
 /* Faint ops-grid behind the instrument, fading at the edges */
 .pv-grid {

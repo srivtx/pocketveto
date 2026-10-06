@@ -4,6 +4,59 @@ All notable changes to PocketVeto are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/).
 
+## [1.4.3] — 2026-10-06
+
+### Fixed
+- **The tutorial that grew past the screen.** Two problems, one rewrite:
+  - *Root cause — the leaking containing block:* the scene animation
+    held an identity `transform` after finishing, which silently turned
+    the page wrapper into the containing block for every `position:
+    fixed` descendant. The tutorial modal anchored to the *document's*
+    middle instead of the viewport's, the bottom nav and FAB rendered
+    *below the visible screen*, and toasts covered the app bar. The
+    animation now ends with `backwards` fill so the transform truly
+    returns to `none` (documented in globals.css — this trap bit twice).
+  - *The rewrite:* the first-run tutorial is now a full-screen
+    onboarding flow (the native pattern): fixed top bar, centered
+    content, and an action bar that is always on screen — it cannot
+    exceed the viewport on any device. Background scroll is locked
+    while it is open; Escape and Skip both dismiss.
+- Toasts moved to the bottom of the screen, above the nav bar
+  (snackbar behavior) — a toast sliding over the app bar from the top
+  is a website tell. On first run the "payments captured" toast stays
+  quiet so the tutorial owns the stage; the Scan badge carries the
+  signal.
+- The FAB ducks out of the way on scroll-down and returns on
+  scroll-up, so it never parks over the text the user is reading.
+
+### Changed — the app shell now behaves like a phone app
+- **Bottom navigation bar** on phones: five equal-width cells, icons
+  dead-center, active hairline indicator + color, capture and saved
+  badges. Desktop keeps the top tab row.
+- **Floating action button** (+) for adding a money date on phones;
+  the header keeps its Add button on desktop.
+- Inside the APK there is no website furniture: no marketing footer,
+  no "back to the site" — the brand in the app bar is the app bar.
+- App chrome is non-selectable with no tap flash; the page doesn't
+  rubber-band at the scroll ends.
+
+### Added
+- **Settings grew up** (the "is it even working?" screen):
+  - **Autopay detection** section — live notification-access status
+    (with the jump to system settings), captures waiting, and a
+    **detection self-test** that runs the real parser over canned
+    PhonePe/Paytm/bank-SMS notifications (plus promo/OTP junk it must
+    reject) and shows each check. Provable, on-device, no payment
+    needed. In the browser the same test proves the parser; capture
+    itself is APK-only.
+  - Send-a-test-alert button (T-7 shape preview) once alerts are on.
+  - Replay-the-intro row — the walkthrough is re-runnable, not a
+    once-only secret.
+  - About section with live version (the APK reports its build), links
+    and the privacy line.
+- The detection self-test is pinned by CI (`tests/selftest.test.ts`)
+  — detector regressions now fail the build before any APK ships.
+
 ## [1.4.2] — 2026-10-06
 
 ### Fixed

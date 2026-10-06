@@ -71,6 +71,11 @@ export function PocketVetoApp({
 }) {
   const state = useItems();
   const native = useNativeStatus();
+  /* True synchronously inside the APK (the bridge is injected before any
+     page script runs; this component only ever mounts client-side, so the
+     read needs no hydration story). It is what makes the shell feel native:
+     no marketing footer, no “back to the site” — a phone app is the app. */
+  const [isApp] = useState(() => typeof window !== 'undefined' && 'PocketVetoNative' in window);
   const [tab, setTab] = useState<Tab>(sharedText ? 'scan' : 'radar');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MoneyDateItem | null>(null);
@@ -84,7 +89,11 @@ export function PocketVetoApp({
 
   /* Inside the Android shell: when captures are waiting, the scan tab
      is where the money is — route there once per arrival (async gap,
-     same client-only-data shape as the store load). */
+     same client-only-data shape as the store load). First run is the
+     tutorial's stage: the route still happens (a great post-tutorial
+     landing), but the toast stays quiet — a snackbar shouting over the
+     onboarding flow is the opposite of app-like. The Scan badge carries
+     the signal until the tutorial is done. */
   const routedToCaptures = useRef(false);
   useEffect(() => {
     if (!native.available || native.pendingCount === 0) return;
@@ -95,10 +104,18 @@ export function PocketVetoApp({
       await Promise.resolve();
       if (!alive) return;
       setTab((t) => (t === 'radar' ? 'scan' : t));
-      toast({
-        title: 'Payments captured',
-        description: `${native.pendingCount} payment notification${native.pendingCount === 1 ? '' : 's'} from your phone waiting in Scan.`,
-      });
+      let firstRun = false;
+      try {
+        firstRun = !localStorage.getItem('pv.native.welcomed.v1');
+      } catch {
+        /* storage blocked — the toast is the only signal, keep it */
+      }
+      if (!firstRun) {
+        toast({
+          title: 'Payments captured',
+          description: `${native.pendingCount} payment notification${native.pendingCount === 1 ? '' : 's'} from your phone waiting in Scan.`,
+        });
+      }
     })();
     return () => {
       alive = false;
@@ -125,6 +142,27 @@ export function PocketVetoApp({
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, [tab]);
+
+  /* FAB etiquette (the phone pattern): the button gets out of the way
+     while the user scrolls down into content and returns the moment they
+     scroll up — a static FAB parked over text is a website tell. */
+  const [fabAway, setFabAway] = useState(false);
+  const lastScrollY = useRef(0);
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      const delta = y - lastScrollY.current;
+      lastScrollY.current = y;
+      if (y < 80) {
+        setFabAway(false);
+        return;
+      }
+      if (delta > 6) setFabAway(true);
+      else if (delta < -6) setFabAway(false);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   function openAdd() {
     setEditing(null);
@@ -174,23 +212,34 @@ export function PocketVetoApp({
   const empty = state.items.length === 0;
 
   return (
-    <div className="flex min-h-screen flex-col bg-ink-950 text-mist-100">
-      {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-ink-800/70 bg-ink-950/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
-          <button
-            type="button"
-            onClick={onExit}
-            className="group flex items-center gap-2.5"
-            aria-label="Back to PocketVeto home"
-          >
-            <Logo className="h-8 w-8 text-signal-400 transition-transform duration-300 group-hover:rotate-90" />
-            <span className="hidden font-display text-lg font-semibold tracking-tight sm:block">
-              PocketVeto
-            </span>
-          </button>
+    <div className="flex min-h-dvh flex-col bg-ink-950 text-mist-100">
+      {/* App bar */}
+      <header className="pv-chrome sticky top-0 z-30 border-b border-ink-800/70 bg-ink-950/95 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
+          {isApp ? (
+            /* In the app there is no “site” to go back to — the brand is
+               the app bar, not a navigation button. */
+            <div className="flex items-center gap-2.5">
+              <Logo className="h-8 w-8 text-signal-400" />
+              <span className="font-display text-lg font-semibold tracking-tight">
+                PocketVeto
+              </span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onExit}
+              className="group flex items-center gap-2.5"
+              aria-label="Back to PocketVeto home"
+            >
+              <Logo className="h-8 w-8 text-signal-400 transition-transform duration-300 group-hover:rotate-90" />
+              <span className="hidden font-display text-lg font-semibold tracking-tight sm:block">
+                PocketVeto
+              </span>
+            </button>
+          )}
 
-          <div className="mx-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
             <span
               className={`pv-num rounded-full px-3 py-1 text-[13px] font-semibold transition-colors ${
                 state.atRisk > 0
@@ -213,15 +262,18 @@ export function PocketVetoApp({
           <Button
             onClick={openAdd}
             size="sm"
-            className="bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300"
+            className="hidden bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300 md:inline-flex"
           >
             <Plus className="h-4 w-4" aria-hidden /> Add
           </Button>
         </div>
 
-        {/* Tabs — under 420px the labels yield to icons so all five fit;
-            the nav is the indicator's positioning context (clips + scrolls with it) */}
-        <nav className="relative mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4" aria-label="App sections">
+        {/* Top tabs — desktop pattern. On phones the bottom nav below is
+            the navigation; the indicator still measures these (md+). */}
+        <nav
+          className="pv-chrome relative mx-auto hidden max-w-6xl gap-1 overflow-x-auto px-4 md:flex"
+          aria-label="App sections"
+        >
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -237,7 +289,7 @@ export function PocketVetoApp({
               aria-current={tab === t.id ? 'page' : undefined}
             >
               <t.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-              <span className="max-[420px]:sr-only">{t.label}</span>
+              <span>{t.label}</span>
               {t.id === 'saved' && state.saved > 0 && (
                 <span className="pv-num rounded-full bg-signal-400/15 px-1.5 text-[10px] font-semibold text-signal-400">
                   {state.items.filter((i) => i.status === 'vetoed' || i.status === 'used').length}
@@ -253,7 +305,7 @@ export function PocketVetoApp({
         </nav>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-[9rem] md:pb-6">
         {/* Notification nudge */}
         {needsPermission && tab === 'radar' && (
           <div className="pv-rise mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-signal-500/30 bg-signal-400/10 p-4">
@@ -494,36 +546,121 @@ export function PocketVetoApp({
           {tab === 'settings' && (
             <SettingsView
               items={state.items}
+              native={native}
               onExport={state.exportJSON}
               onImport={state.importJSON}
               onClearAll={() => void state.clearAll()}
               onLoadSample={() => void state.loadSample()}
+              onGoScan={() => setTab('scan')}
             />
           )}
         </div>
       </main>
 
-      <footer className="mt-auto border-t border-ink-800/70 bg-ink-950">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-mist-500">
-          <p className="flex items-center gap-2">
-            <Logo className="h-4 w-4 text-mist-500" />
-            PocketVeto — local-first. Nothing leaves this device.
-          </p>
-          <div className="flex gap-4">
-            <a
-              href="https://github.com/srivtx/pocketveto"
-              target="_blank"
-              rel="noreferrer"
-              className="transition-colors hover:text-mist-300"
-            >
-              GitHub
-            </a>
-            <button onClick={onExit} className="transition-colors hover:text-mist-300">
-              About the project
-            </button>
-          </div>
+      {/* Bottom navigation — the phone pattern (md and below). Five equal
+          1fr cells, icons dead-center of each: a phone app's navigation is
+          evenly distributed across the width, never left-packed. */}
+      <nav
+        aria-label="App sections"
+        className="pv-chrome fixed inset-x-0 bottom-0 z-30 border-t border-ink-800/80 bg-ink-950/95 backdrop-blur md:hidden"
+      >
+        <div className="mx-auto grid max-w-lg grid-cols-5">
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            const savedCount =
+              t.id === 'saved' && state.saved > 0
+                ? state.items.filter((i) => i.status === 'vetoed' || i.status === 'used').length
+                : 0;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                aria-label={t.label}
+                aria-current={active ? 'page' : undefined}
+                onClick={() => setTab(t.id)}
+                className="relative flex flex-col items-center justify-center gap-1 pt-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+              >
+                {active && (
+                  <span
+                    className="absolute top-0 h-0.5 w-8 rounded-full bg-signal-400"
+                    aria-hidden
+                  />
+                )}
+                <span className="relative flex h-5 w-5 items-center justify-center">
+                  <t.icon
+                    className={`h-5 w-5 transition-colors duration-200 ${
+                      active ? 'text-signal-400' : 'text-mist-500'
+                    }`}
+                    strokeWidth={active ? 2 : 1.75}
+                    aria-hidden
+                  />
+                  {t.id === 'scan' && native.pendingCount > 0 && (
+                    <span
+                      className="absolute -right-1.5 -top-1 h-2 w-2 rounded-full bg-cliff-400 ring-2 ring-ink-950"
+                      aria-hidden
+                    />
+                  )}
+                  {savedCount > 0 && (
+                    <span
+                      className="pv-num absolute -right-2.5 -top-1.5 rounded-full bg-signal-400 px-1 text-[9px] font-bold text-ink-950"
+                      aria-hidden
+                    >
+                      {savedCount}
+                    </span>
+                  )}
+                </span>
+                <span
+                  className={`text-[10px] font-medium leading-none transition-colors duration-200 ${
+                    active ? 'text-mist-100' : 'text-mist-500'
+                  }`}
+                >
+                  {t.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
-      </footer>
+      </nav>
+
+      {/* FAB — the phone pattern for the primary action (md and below;
+          desktop keeps the header Add button). Sits above the bottom nav,
+          ducks out of the way on scroll-down. */}
+      <Button
+        onClick={openAdd}
+        size="icon"
+        aria-label="Add a money date"
+        aria-hidden={fabAway}
+        className={`pv-chrome fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 h-14 w-14 rounded-full bg-signal-400 text-ink-950 shadow-xl shadow-black/40 transition-all duration-300 hover:scale-105 hover:bg-signal-300 active:scale-95 md:hidden ${
+          fabAway ? 'pointer-events-none translate-y-24 opacity-0' : ''
+        }`}
+      >
+        <Plus className="h-6 w-6" aria-hidden />
+      </Button>
+
+      {/* Site furniture — a phone app has no marketing footer. Web keeps it. */}
+      {!isApp && (
+        <footer className="mt-auto border-t border-ink-800/70 bg-ink-950">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-mist-500">
+            <p className="flex items-center gap-2">
+              <Logo className="h-4 w-4 text-mist-500" />
+              PocketVeto — local-first. Nothing leaves this device.
+            </p>
+            <div className="flex gap-4">
+              <a
+                href="https://github.com/srivtx/pocketveto"
+                target="_blank"
+                rel="noreferrer"
+                className="transition-colors hover:text-mist-300"
+              >
+                GitHub
+              </a>
+              <button onClick={onExit} className="transition-colors hover:text-mist-300">
+                About the project
+              </button>
+            </div>
+          </div>
+        </footer>
+      )}
 
       {/* First-run tutorial (native shell only, skippable, once) */}
       <Welcome />
