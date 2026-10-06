@@ -4,6 +4,52 @@ All notable changes to PocketVeto are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/).
 
+## [1.4.4] — 2026-10-06
+
+### Fixed
+- **PocketVeto was invisible in Android's "Notification access" list —
+  the bug behind "autopay detection isn't capturing".** The listener
+  service was declared without the required
+  `android.permission.BIND_NOTIFICATION_LISTENER_SERVICE` attribute, and
+  Android silently drops such services from the Special-app-access list —
+  the app never appeared there, so the toggle could never be flipped.
+  Confirmed against the shipped v1.4.3 APK bytes (the permission string
+  is absent from its manifest); fixed, and the service is now exactly the
+  shape the platform documents. The detection engine is actually
+  reachable now.
+- **"Turn on alerts" was a dead button inside the APK.** The Web
+  Notification API cannot be granted in a bare WebView (no permission
+  UI — Chromium auto-denies), so the web flow could never succeed and
+  PocketVeto never showed up as a notification-posting app. Alerts are
+  native now: the bridge fires the real Android 13+ POST_NOTIFICATIONS
+  runtime prompt, posts real system notifications on a proper
+  "Money-date reminders" channel (ring-dot status icon, signal accent),
+  and deep-links to the app's own notification settings. Browsers and
+  installed PWAs keep the plain web path.
+- **Settings rows no longer crunch.** The v1.4.3 rows placed a
+  shrink-0 control cluster (status chip + button, up to ~180px) on the
+  same line as the label, squeezing the text column to ~150px on a
+  390px phone — copy crumbled into one-word-per-line stacks. Rows now
+  stack on phones (title → support → full-width control line) and go
+  side-by-side from `sm` up. The cramped self-test panel, data rows and
+  danger zone all inherit the fix.
+
+### Changed — settings, the clean pass
+- Settings sections wear canvas-style micro-labels above solid cards
+  (one elevation, hairline borders) instead of in-card header rows on
+  translucent plates — the whole screen is quieter and every row has
+  room to breathe.
+- The notification-access row now tells the user exactly what to allow:
+  open the system screen, find PocketVeto, flip the toggle — with the
+  naming variations ("Notification access" on stock Android,
+  "Device & app notifications" on Samsung) spelled out in the row.
+- A dedicated "App notification settings" row deep-links to Android's
+  own screen for this app (channel, importance, master toggle), keeping
+  the two different system screens (read others' notifications vs post
+  your own) clearly separated.
+- All app cards moved from translucent fills to solid surfaces — crisper
+  plates over the app background, one consistent elevation.
+
 ## [1.4.3] — 2026-10-06
 
 ### Fixed

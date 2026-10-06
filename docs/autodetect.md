@@ -3,7 +3,7 @@
 How PocketVeto finds the charges you forgot. Every rung is graded on
 what it can actually read, not what marketing wishes it could.
 
-## Where we are (v1.4.1)
+## Where we are (v1.4.4)
 
 | Rung | Channel | Status |
 |---|---|---|
@@ -22,6 +22,31 @@ tested detector as the web flows, entirely on-device. Recognized brands
 are flagged as *known subscriptions* (a local catalog — no server), so
 two captures with a fitting rhythm are enough, even across a plan-price
 change.
+
+## Turning it on — and proving it works
+
+Two different system screens are involved, and mixing them up is the
+classic confusion (it bit this project too):
+
+| Screen | What it controls | How to reach it |
+|---|---|---|
+| **Notification access** (special app access) | PocketVeto *reading* other apps' notifications — the capture engine | Settings → Special app access → Notification access → PocketVeto → On. Samsung labels it *Device & app notifications*; it lives under Settings → Notifications there. |
+| **PocketVeto's own notifications** | The app *posting* its T-7/T-2/day-of reminders | Android 13+ asks via the system runtime prompt when you tap *Turn on alerts* in the app; afterwards Settings → Apps → PocketVeto → Notifications. |
+
+**v1.4.4 fix worth knowing about:** the listener service was originally
+declared without the `android.permission.BIND_NOTIFICATION_LISTENER_SERVICE`
+attribute — and Android *silently* omits such services from the
+Notification access list. The app installed fine, the settings button
+opened the right screen, and PocketVeto simply wasn't in the list. The
+attribute is present now (and verified against release APK bytes); if
+you ever rebuild a fork, check that first.
+
+To prove detection works on your phone:
+1. Settings → Autopay detection → **Notification access** should read *On*.
+2. Tap **Run self-test** — six checks over the real parser, in-app.
+3. Make any small UPI payment (₹1 to a friend works) — the notification
+   should land in **Scan → Captures** within moments, badge and all.
+4. The row also shows a live count of captures waiting.
 
 ## Why the web alone can't do it
 

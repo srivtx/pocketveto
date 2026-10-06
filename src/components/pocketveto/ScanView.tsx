@@ -100,7 +100,7 @@ function DetectedCard({
   if (dismissed) return null;
   return (
     <li
-      className="pv-rise rounded-xl border border-ink-800 bg-ink-925/50 p-4 transition-colors hover:border-ink-700"
+      className="pv-rise rounded-xl border border-ink-800 bg-ink-925 p-4 transition-colors hover:border-ink-700"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-start gap-3.5">
@@ -200,7 +200,7 @@ function SingleChargeCard({
 }) {
   return (
     <li
-      className="pv-rise rounded-xl border border-ink-800 bg-ink-925/50 p-4 transition-colors hover:border-ink-700"
+      className="pv-rise rounded-xl border border-ink-800 bg-ink-925 p-4 transition-colors hover:border-ink-700"
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-center gap-3.5">
@@ -437,7 +437,7 @@ export function ScanView({
 
       {/* Input */}
       {!result && (
-        <div className="rounded-2xl border border-ink-800 bg-ink-925/50 p-4">
+        <div className="rounded-2xl border border-ink-800 bg-ink-925 p-4">
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -504,7 +504,7 @@ export function ScanView({
       {/* Results */}
       {result && (
         <>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-800 bg-ink-925/50 p-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-800 bg-ink-925 p-4">
             <div>
               <p className="font-display text-base font-semibold tracking-tight text-mist-100">
                 {visible.length === 0

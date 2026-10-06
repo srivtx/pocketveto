@@ -3,12 +3,15 @@
 
     <!-- The web layer is bundled locally; the virtual https origin still
          requires INTERNET for WebView bookkeeping. No telemetry, no other
-         network use. This is the ONLY permission: the capture engine runs
-         on "Notification access" — a special app access the user flips in
-         system settings, which triggers no install-time permission prompt
-         (and no Play Protect fraud warning — the reason the optional SMS
-         receiver was removed in v1.4.1). -->
+         network use. The capture engine runs on "Notification access" —
+         a special app access the user flips in system settings, which
+         triggers no install-time permission prompt (and no Play Protect
+         fraud warning — the reason the optional SMS receiver was removed
+         in v1.4.1). POST_NOTIFICATIONS (API 33+) is the runtime prompt
+         for the app's OWN reminder alerts — asked only when the user
+         turns alerts on in settings, never at install. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:label="@string/app_name"
@@ -32,11 +35,19 @@
         <!-- The auto-detect engine: reads payment notifications from any
              app (PhonePe, GPay, Paytm, banks…). Special app access — the
              user flips the switch in system settings; nothing is captured
-             before that, and it can be revoked any time. -->
+             before that, and it can be revoked any time.
+
+             ⚠ BIND_NOTIFICATION_LISTENER_SERVICE is load-bearing (bug fixed
+             in v1.4.4): without this android:permission attribute Android
+             silently refuses to list the service in Settings → Notification
+             access — the app never appears there and the toggle can't be
+             flipped. It also guarantees only the system can bind, which is
+             the whole security model of a listener. -->
         <service
             android:name=".PaymentListenerService"
             android:exported="true"
-            android:label="@string/notif_listener_label">
+            android:label="@string/notif_listener_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>

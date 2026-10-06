@@ -358,7 +358,7 @@ function ItemForm({
         </div>
 
         {draft.recurrence !== 'once' && (
-          <div className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900/50 px-3 py-2.5">
+          <div className="flex items-center justify-between rounded-lg border border-ink-800 bg-ink-900 px-3 py-2.5">
             <div>
               <p className="text-sm font-medium text-mist-200">Auto-advance renewals</p>
               <p className="mt-0.5 text-xs leading-relaxed text-mist-500">

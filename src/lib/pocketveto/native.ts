@@ -11,6 +11,15 @@
  * made Play Protect hard-block installs); notifications cover the
  * payment feeds, and the bridge no longer carries SMS plumbing.
  *
+ * v1.4.4: the bridge grew the alerts half. The Web Notification API
+ * cannot be granted inside a bare WebView (no browser permission UI —
+ * Chromium auto-denies), so the app's own reminders now route through
+ * native: alertsEnabled/requestAlerts/postAlert/openAlertSettings,
+ * backed by the POST_NOTIFICATIONS runtime prompt and a real "alerts"
+ * notification channel. The web layer keeps the same permission-state
+ * vocabulary, so every consumer (nudge banner, settings, reminders)
+ * works unchanged in both worlds.
+ *
  * Rules the whole bridge obeys:
  *  - Server renders never touch it (hydration stays deterministic).
  *  - Every read is defensive — a malformed entry is skipped, never thrown.
@@ -38,6 +47,16 @@ interface NativeBridgeShape {
   takeCaptured(): string;
   notifEnabled(): boolean;
   openNotifAccess(): void;
+  /** True when this app's own reminders can post (Android 13+ runtime grant
+   *  or the per-app notification toggle). */
+  alertsEnabled(): boolean;
+  /** Fires the POST_NOTIFICATIONS runtime prompt (native replacement for
+   *  the Web Notification permission dialog that WebViews can't show). */
+  requestAlerts(): void;
+  /** Posts one real system notification; false when blocked. */
+  postAlert(title: string, body: string): boolean;
+  /** Deep-link to this app's own notification settings (channel list). */
+  openAlertSettings(): void;
 }
 
 /** Friendly labels for known capture sources. Unknowns get a cleaned tail. */
@@ -102,6 +121,8 @@ export interface NativeStatus {
   available: boolean;
   notifEnabled: boolean;
   pendingCount: number;
+  /** True when the app's own reminder alerts can post (native bridge). */
+  alertsEnabled: boolean;
 }
 
 /** What the hook hands back — status plus the manual refresh trigger. */
@@ -111,6 +132,7 @@ const NATIVE_IDLE: NativeStatus = {
   available: false,
   notifEnabled: false,
   pendingCount: 0,
+  alertsEnabled: false,
 };
 
 export function useNativeStatus() {
@@ -124,6 +146,8 @@ export function useNativeStatus() {
         available: true,
         notifEnabled: b.notifEnabled(),
         pendingCount: b.captureCount(),
+        // v1.4.3 APKs lack the method — a missing bridge method reads as off.
+        alertsEnabled: typeof b.alertsEnabled === 'function' ? b.alertsEnabled() : false,
       });
     } catch {
       /* a bridge that throws mid-read stays at its last known state */

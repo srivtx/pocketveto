@@ -2,8 +2,13 @@ package dev.pocketveto.android
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.webkit.JavascriptInterface
@@ -33,6 +38,15 @@ import androidx.webkit.WebViewAssetLoader
  * receiver entirely: its permission group is what made Play Protect
  * hard-block the install with an identity-fraud warning no user should
  * have to fight through. Notifications alone cover the payment feeds.
+ *
+ * v1.4.4 adds the alerts half of the bridge. The Web Notification API is
+ * dead inside a bare WebView (Chromium auto-denies permission — there is
+ * no browser UI to grant it), so "Turn on alerts" in the web settings ran
+ * into a wall: it can never be granted, and the app never shows up as a
+ * notification-posting app. The honest fix is native: the bridge asks the
+ * Android 13+ POST_NOTIFICATIONS runtime prompt, posts real notifications
+ * on the "alerts" channel, and deep-links to this app's own notification
+ * settings. All framework APIs — zero new gradle dependencies.
  */
 class MainActivity : Activity() {
 
@@ -90,6 +104,69 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 
+    /* ---------------- alert plumbing ---------------- */
+
+    companion object {
+        private const val ALERT_CHANNEL_ID = "alerts"
+        private const val ALERT_REQ_CODE = 4047
+        /** The signal-400 accent from the web design system, as ARGB. */
+        private const val ALERT_COLOR = 0xFF2EBB8B.toInt()
+    }
+
+    /** The channel the app's OWN reminders post on (created lazily). */
+    private fun ensureAlertChannel() {
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (nm.getNotificationChannel(ALERT_CHANNEL_ID) != null) return
+        nm.createNotificationChannel(
+            NotificationChannel(
+                ALERT_CHANNEL_ID,
+                "Money-date reminders",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = "T-7, T-2 and day-of warnings before a charge moves"
+            },
+        )
+    }
+
+    /** True when the OS would let this app post (runtime prompt + user toggle). */
+    private fun postsAllowed(): Boolean {
+        return if (Build.VERSION.SDK_INT >= 33) {
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+        } else {
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
+                .areNotificationsEnabled()
+        }
+    }
+
+    /** Runs after the POST_NOTIFICATIONS dialog — nothing to do: the web
+     *  layer re-polls alertsEnabled() when the window regains focus. */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+
+    /** Posts a real system notification. Safe off the UI thread (binder call). */
+    private fun postSystemNotification(title: String, body: String): Boolean {
+        if (!postsAllowed()) return false
+        ensureAlertChannel()
+        val n = Notification.Builder(this, ALERT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_notify)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(Notification.BigTextStyle().bigText(body))
+            .setColor(ALERT_COLOR)
+            .setCategory(Notification.CATEGORY_REMINDER)
+            .setAutoCancel(true)
+            .build()
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(title.hashCode(), n)
+        return true
+    }
+
     /** Back navigates the web history before leaving the app. */
     @Deprecated("Deprecated in Java")
     @Suppress("DEPRECATION")
@@ -133,6 +210,43 @@ class MainActivity : Activity() {
         fun openNotifAccess() {
             runOnUiThread {
                 startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            }
+        }
+
+        /** True when this app's own reminders can post (user toggle + runtime grant). */
+        @JavascriptInterface
+        fun alertsEnabled(): Boolean = postsAllowed()
+
+        /** Fires the Android 13+ "allow notifications" runtime prompt for
+         *  this app's own alerts (the Web Notification API cannot ask from
+         *  inside a WebView — this is its native replacement). */
+        @JavascriptInterface
+        fun requestAlerts() {
+            runOnUiThread {
+                if (Build.VERSION.SDK_INT >= 33 &&
+                    checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+                        PackageManager.PERMISSION_GRANTED
+                ) {
+                    requestPermissions(
+                        arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                        ALERT_REQ_CODE,
+                    )
+                }
+            }
+        }
+
+        /** Posts one real system notification. Returns false when blocked. */
+        @JavascriptInterface
+        fun postAlert(title: String, body: String): Boolean =
+            postSystemNotification(title, body)
+
+        /** Deep-links to this app's own notification settings (channel list). */
+        @JavascriptInterface
+        fun openAlertSettings() {
+            runOnUiThread {
+                val i = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                startActivity(i)
             }
         }
 

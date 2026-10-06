@@ -410,7 +410,7 @@ export function PocketVetoApp({
         <div key={tab} className="pv-rise">
           {tab === 'radar' && (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,460px)_1fr]">
-              <div className="rounded-2xl border border-ink-800 bg-ink-925/50 p-4">
+              <div className="rounded-2xl border border-ink-800 bg-ink-925 p-4">
                 <div className="relative">
                   <div className="pv-grid pv-grid-fade absolute inset-0" aria-hidden />
                   <RadarChart views={state.views} onSelect={(v) => setSelectedBlip(v)} />
@@ -433,7 +433,7 @@ export function PocketVetoApp({
 
               <div className="grid grid-cols-1 content-start gap-4 min-w-0">
                 <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
-                  <div className="rounded-2xl border border-ink-800 bg-ink-925/50 p-5">
+                  <div className="rounded-2xl border border-ink-800 bg-ink-925 p-5">
                     <p className="pv-num text-3xl font-semibold tracking-tight text-cliff-300">
                       {formatMoney(atRiskDisplay)}
                     </p>
@@ -441,7 +441,7 @@ export function PocketVetoApp({
                       at stake across {activeCount} active date{activeCount === 1 ? '' : 's'}
                     </p>
                   </div>
-                  <div className="rounded-2xl border border-ink-800 bg-ink-925/50 p-5">
+                  <div className="rounded-2xl border border-ink-800 bg-ink-925 p-5">
                     <p className="pv-num text-3xl font-semibold tracking-tight text-mist-100">
                       {formatMoney(runRateDisplay)}
                     </p>
@@ -451,7 +451,7 @@ export function PocketVetoApp({
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-ink-800 bg-ink-925/50 p-5">
+                <div className="rounded-2xl border border-ink-800 bg-ink-925 p-5">
                   <h3 className="pv-label mb-4">Next 7 days</h3>
                   {state.weekItems.length === 0 ? (
                     <p className="text-sm leading-relaxed text-mist-500">

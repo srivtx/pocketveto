@@ -105,7 +105,7 @@ export function ItemsView({
             <div
               key={item.id}
               style={{ animationDelay: `${Math.min(i, 8) * 45}ms` }}
-              className={`pv-rise rounded-xl border border-ink-800 border-l-2 bg-ink-925/40 p-4 transition-colors duration-200 hover:border-ink-700 ${
+              className={`pv-rise rounded-xl border border-ink-800 border-l-2 bg-ink-925 p-4 transition-colors duration-200 hover:border-ink-700 ${
                 TIER_RAIL[item.urgency] ?? TIER_RAIL.clear
               } ${item.status !== 'active' ? 'opacity-60' : ''}`}
             >

@@ -63,7 +63,7 @@ export function PlaybookPanel({ item }: { item: ItemView }) {
   }
 
   return (
-    <div className="rounded-xl border border-ink-800 bg-ink-925/40 p-4">
+    <div className="rounded-xl border border-ink-800 bg-ink-925 p-4">
       <div className="mb-3 flex items-center gap-2.5">
         <KindGlyph kind={item.kind} className="h-4 w-4 text-signal-400" />
         <h4 className="text-sm font-semibold text-mist-100">{pb.title}</h4>
