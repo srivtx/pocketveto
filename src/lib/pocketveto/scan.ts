@@ -248,6 +248,18 @@ function normalizeMerchant(raw: string): string {
   return s.split(/\s+/).slice(0, 2).join(' ').slice(0, 28);
 }
 
+/** Known brand lookup over normalized keys — shared with the payments
+ *  classifier so a captured charge and a statement line agree on brands. */
+export function brandForKey(key: string): { name: string; kind?: ItemKind } | null {
+  return brandFor(key);
+}
+
+/** Normalized grouping key — one shared merchant space for statements,
+ *  shared payments and ledger entries. */
+export function normalizeMerchantKey(raw: string): string {
+  return normalizeMerchant(raw);
+}
+
 function brandFor(key: string): { name: string; kind?: ItemKind } | null {
   for (const b of BRANDS) {
     if (b.fragments.some((f) => key.includes(f))) return { name: b.name, kind: b.kind };

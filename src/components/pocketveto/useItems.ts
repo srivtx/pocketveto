@@ -1,7 +1,13 @@
 'use client';
 
 /**
- * PocketVeto — the app state hook. One source of truth over local storage.
+ * PocketVeto — the app state hook. One source of truth over local storage:
+ * the radar items AND the payments ledger (v1.5.0).
+ *
+ * The two stores obey the split payments.ts enforces: captured charges
+ * land in the ledger (autopay-flagged), only autopays feed the radar,
+ * and totals are computed from the ledger alone — so the radar, the
+ * ledger and the totals can never disagree.
  *
  * Alert model: thresholds crossed between visits are surfaced at load
  * ("while you were away") and persisted as notified; while the app is
@@ -10,8 +16,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ItemStatus, MoneyDateItem } from '@/lib/pocketveto/types';
-import { toView } from '@/lib/pocketveto/dates';
+import type { ItemStatus, MoneyDateItem, PaymentRecord, PaymentSource } from '@/lib/pocketveto/types';
+import { toView, todayISO } from '@/lib/pocketveto/dates';
 import {
   atRiskSum,
   annualRunRate,
@@ -20,13 +26,25 @@ import {
   urgencyCounts,
 } from '@/lib/pocketveto/risk';
 import {
-  importItems,
+  chargesToPayments,
+  manualPayment,
+  spendSummary,
+  type RecordOutcome,
+  type SpendSummary,
+} from '@/lib/pocketveto/payments';
+import type { ParsedCharge } from '@/lib/pocketveto/scan';
+import {
+  exportAll,
+  importData,
   loadItems,
+  loadPayments,
   removeItem,
+  removePayment,
   saveAll,
+  saveAllPayments,
   upsertItem,
 } from '@/lib/pocketveto/store';
-import { sampleItems } from '@/lib/pocketveto/seed';
+import { sampleItems, samplePayments } from '@/lib/pocketveto/seed';
 import {
   dueAlerts,
   fireNotification,
@@ -34,10 +52,19 @@ import {
   type FiredAlert,
 } from '@/lib/pocketveto/notifications';
 
+export interface RecordChargeOptions {
+  source: PaymentSource;
+  via: string;
+}
+
 export interface ItemsState {
   ready: boolean;
   items: MoneyDateItem[];
   views: ReturnType<typeof toView>[];
+  /** The payments ledger — every recorded payment, newest last. */
+  payments: PaymentRecord[];
+  /** Today / this-month totals computed from the ledger. */
+  spend: SpendSummary;
   atRisk: number;
   saved: number;
   runRate: number;
@@ -45,10 +72,17 @@ export interface ItemsState {
   counts: Record<string, number>;
   pendingAlerts: FiredAlert[];
   dismissAlerts: () => void;
-  addItem: (item: Omit<MoneyDateItem, 'createdAt' | 'updatedAt'>) => Promise<void>;
+  addItem: (item: Omit<MoneyDateItem, 'createdAt' | 'updatedAt'>) => Promise<MoneyDateItem>;
   updateItem: (item: MoneyDateItem) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   setStatus: (id: string, status: ItemStatus) => Promise<void>;
+  /** Parse-result charges → ledger records (classified + deduped). */
+  recordCharges: (charges: ParsedCharge[], opts: RecordChargeOptions) => RecordOutcome;
+  /** One manual ledger entry (the Payments add dialog). */
+  addManualPayment: (merchant: string, amount: number, date: string) => PaymentRecord | null;
+  deletePayment: (id: string) => Promise<void>;
+  /** Mark unlinked ledger payments of this payee as this item's renewals. */
+  linkPaymentsToItem: (key: string, itemId: string) => Promise<void>;
   loadSample: () => Promise<void>;
   clearAll: () => Promise<void>;
   importJSON: (raw: string) => { imported: number; skipped: number };
@@ -57,18 +91,24 @@ export interface ItemsState {
 
 export function useItems(): ItemsState {
   const [items, setItems] = useState<MoneyDateItem[]>([]);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [ready, setReady] = useState(false);
   const [pendingAlerts, setPendingAlerts] = useState<FiredAlert[]>([]);
   const itemsRef = useRef<MoneyDateItem[]>([]);
+  const paymentsRef = useRef<PaymentRecord[]>([]);
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+  useEffect(() => {
+    paymentsRef.current = payments;
+  }, [payments]);
 
   // Load once: apply auto-advance, mark crossed thresholds, surface the away-report.
   useEffect(() => {
     let alive = true;
     (async () => {
       const stored = await loadItems();
+      const storedPayments = await loadPayments();
       let advanced = stored.map((i) => {
         const v = toView(i);
         if (v.lapsedCycles > 0) {
@@ -94,6 +134,7 @@ export function useItems(): ItemsState {
       if (changed) await saveAll(advanced);
       if (!alive) return;
       setItems(advanced);
+      setPayments(storedPayments);
       setPendingAlerts(due);
       setReady(true);
     })();
@@ -139,6 +180,11 @@ export function useItems(): ItemsState {
 
   const views = useMemo(() => items.map((i) => toView(i)), [items]);
 
+  const spend = useMemo(
+    () => spendSummary(payments, todayISO()),
+    [payments]
+  );
+
   const addItem = useCallback(async (draft: Omit<MoneyDateItem, 'createdAt' | 'updatedAt'>) => {
     const now = new Date().toISOString();
     const item: MoneyDateItem = { ...draft, createdAt: now, updatedAt: now };
@@ -146,6 +192,7 @@ export function useItems(): ItemsState {
     itemsRef.current = next;
     setItems(next);
     await upsertItem(item, next);
+    return item;
   }, []);
 
   const updateItem = useCallback(async (item: MoneyDateItem) => {
@@ -160,6 +207,16 @@ export function useItems(): ItemsState {
     const remaining = itemsRef.current.filter((i) => i.id !== id);
     itemsRef.current = remaining;
     setItems(remaining);
+    // Payments linked to a deleted item keep their history — the link
+    // is dropped, the ledger entry stays.
+    const paymentsNext = paymentsRef.current.map((p) =>
+      p.linkedItemId === id ? { ...p, linkedItemId: undefined } : p
+    );
+    if (paymentsNext.some((p, i) => p !== paymentsRef.current[i])) {
+      paymentsRef.current = paymentsNext;
+      setPayments(paymentsNext);
+      await saveAllPayments(paymentsNext);
+    }
     await removeItem(id, remaining);
   }, []);
 
@@ -180,36 +237,99 @@ export function useItems(): ItemsState {
     await upsertItem(next, updated);
   }, []);
 
+  const recordCharges = useCallback(
+    (charges: ParsedCharge[], opts: RecordChargeOptions): RecordOutcome => {
+      const outcome = chargesToPayments(
+        charges,
+        {
+          payments: paymentsRef.current,
+          items: itemsRef.current,
+          today: todayISO(),
+        },
+        { source: opts.source, via: opts.via }
+      );
+      if (outcome.added.length > 0) {
+        const next = [...paymentsRef.current, ...outcome.added];
+        paymentsRef.current = next;
+        setPayments(next);
+        void saveAllPayments(next);
+      }
+      return outcome;
+    },
+    []
+  );
+
+  const addManualPayment = useCallback(
+    (merchant: string, amount: number, date: string): PaymentRecord | null => {
+      if (!merchant.trim() || !Number.isFinite(amount) || amount <= 0) return null;
+      const record = manualPayment(merchant.trim(), amount, date, {
+        payments: paymentsRef.current,
+        items: itemsRef.current,
+        today: todayISO(),
+      });
+      const next = [...paymentsRef.current, record];
+      paymentsRef.current = next;
+      setPayments(next);
+      void saveAllPayments(next);
+      return record;
+    },
+    []
+  );
+
+  const deletePayment = useCallback(async (id: string) => {
+    const remaining = paymentsRef.current.filter((p) => p.id !== id);
+    paymentsRef.current = remaining;
+    setPayments(remaining);
+    await removePayment(id, remaining);
+  }, []);
+
+  const linkPaymentsToItem = useCallback(async (key: string, itemId: string) => {
+    const current = paymentsRef.current;
+    const next = current.map((p) =>
+      p.key === key && !p.linkedItemId ? { ...p, linkedItemId: itemId } : p
+    );
+    if (next.every((p, i) => p === current[i])) return;
+    paymentsRef.current = next;
+    setPayments(next);
+    await saveAllPayments(next);
+  }, []);
+
   const loadSample = useCallback(async () => {
     // Demo action: replace, never append — the sample set is the demo
     // state, and stacking it (each load mints fresh ids) duplicates items.
     const next = sampleItems();
     itemsRef.current = next;
     setItems(next);
+    const nextPayments = samplePayments();
+    paymentsRef.current = nextPayments;
+    setPayments(nextPayments);
     await saveAll(next);
+    await saveAllPayments(nextPayments);
   }, []);
 
   const clearAll = useCallback(async () => {
     itemsRef.current = [];
     setItems([]);
+    paymentsRef.current = [];
+    setPayments([]);
     setPendingAlerts([]);
     await saveAll([]);
+    await saveAllPayments([]);
   }, []);
 
   const importJSON = useCallback((raw: string) => {
-    const result = importItems(raw, itemsRef.current);
+    const result = importData(raw, itemsRef.current, paymentsRef.current);
     itemsRef.current = result.items;
     setItems(result.items);
+    paymentsRef.current = result.payments;
+    setPayments(result.payments);
     void saveAll(result.items);
+    void saveAllPayments(result.payments);
     return { imported: result.imported, skipped: result.skipped };
   }, []);
 
   const exportJSON = useCallback(() => {
-    return JSON.stringify(
-      { app: 'pocketveto', version: 1, exportedAt: new Date().toISOString(), items: itemsRef.current },
-      null,
-      2
-    );
+    return exportAll(itemsRef.current, paymentsRef.current);
   }, []);
 
   const dismissAlerts = useCallback(() => setPendingAlerts([]), []);
@@ -217,6 +337,8 @@ export function useItems(): ItemsState {
   return {
     ready,
     items,
+    payments,
+    spend,
     views,
     atRisk: atRiskSum(views),
     saved: savedSum(items),
@@ -229,6 +351,10 @@ export function useItems(): ItemsState {
     updateItem,
     deleteItem,
     setStatus,
+    recordCharges,
+    addManualPayment,
+    deletePayment,
+    linkPaymentsToItem,
     loadSample,
     clearAll,
     importJSON,

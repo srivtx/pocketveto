@@ -129,6 +129,47 @@ export const KIND_META: Record<
   },
 };
 
+/* ------------------------------------------------------------------ */
+/* Payments ledger                                                      */
+/* ------------------------------------------------------------------ */
+
+/** Where a ledger entry came from. */
+export type PaymentSource = 'notification' | 'share' | 'manual';
+
+/**
+ * One real payment that already happened — the spend ledger.
+ *
+ * Architecture (the split the whole app obeys): every payment the
+ * capture engine reads lands HERE first. The classifier then decides
+ * autopay vs one-off. Only autopays feed the subscription radar — a
+ * one-off payment NEVER becomes a MoneyDateItem unless the user
+ * promotes it by hand. Totals sum the ledger; the radar stays clean.
+ */
+export interface PaymentRecord {
+  id: string;
+  /** Display-ready payee ("Netflix", "Ravi Sharma"). */
+  merchant: string;
+  /** Normalized grouping key — same space as DetectedRecurring.key. */
+  key: string;
+  /** Absolute amount in currency units. */
+  amount: number;
+  /** ISO yyyy-mm-dd of the payment. */
+  date: string;
+  /** ISO timestamp when the app recorded it. */
+  createdAt: string;
+  source: PaymentSource;
+  /** Friendly origin: "PhonePe", "Google Pay", "Shared text", "Added by you". */
+  via: string;
+  /** True when the classifier says this is a recurring / autopay charge. */
+  autopay: boolean;
+  /** One human line — why it was classified that way. */
+  reason: string;
+  /** Set when this payment belongs to a tracked radar item. */
+  linkedItemId?: string;
+  /** Evidence: the notification line it came from (trimmed). */
+  raw?: string;
+}
+
 export const KIND_ORDER: ItemKind[] = [
   'trial',
   'subscription',

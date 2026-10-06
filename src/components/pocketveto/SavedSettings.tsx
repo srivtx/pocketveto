@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * PocketVeto — the saved ledger (victory lap) + settings (data controls).
+ * PocketVeto — settings (data controls).
  *
  * v1.4.4 layout: settings rebuilt clean. The v1.4.3 rows put label+support
  * left and a shrink-0 control cluster right on one line — on a 390px phone
@@ -13,8 +13,12 @@
  * headers, and the solid plate reads cleaner over the app background than
  * the old translucent fill.
  *
- * The notification story is also honest now: two DIFFERENT system screens
- * exist and the rows say exactly which one to use —
+ * v1.5.0: the victory-lap SavedView moved into ItemsView as a "Saved"
+ * filter (the tab bar's fifth cell now belongs to Payments), and the data
+ * rows count the payments ledger alongside the radar items.
+ *
+ * The notification story is honest: two DIFFERENT system screens exist and
+ * the rows say exactly which one to use —
  *  - "Notification access" (Special app access) feeds autopay detection.
  *  - The app's own notification channel (Android 13+ POST_NOTIFICATIONS)
  *    feeds reminder alerts — asked natively, because the Web Notification
@@ -52,62 +56,7 @@ import { getNativeBridge, type NativeStatusLive } from '@/lib/pocketveto/native'
 import { runDetectionSelfTest, type SelfTestResult } from '@/lib/pocketveto/selftest';
 import { APP_VERSION } from '@/lib/pocketveto/version';
 import { toast } from '@/hooks/use-toast';
-import { KindGlyph } from './KindGlyph';
-import { useCountUp } from './motion';
 import { replayIntro } from './Welcome';
-
-export function SavedView({ items }: { items: MoneyDateItem[] }) {
-  const closed = items
-    .filter((i) => i.status === 'vetoed' || i.status === 'used')
-    .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
-
-  const total = closed.reduce((s, i) => s + (i.savedAmount ?? 0), 0);
-  const totalDisplay = useCountUp(total);
-
-  return (
-    <div className="max-w-2xl">
-      <div className="pv-rise mb-8 rounded-2xl border border-signal-500/30 bg-ink-925 p-7 text-center">
-        <p className="pv-num text-5xl font-semibold tracking-tight text-signal-300">
-          {formatMoney(totalDisplay)}
-        </p>
-        <p className="mt-2 text-sm leading-relaxed text-mist-400">
-          kept instead of lost — vetoes, claims and redemptions you acted on
-        </p>
-      </div>
-
-      {closed.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-ink-800 bg-ink-925 p-8 text-center text-sm leading-relaxed text-mist-500">
-          Nothing here yet. The first entry feels great — veto a trial, redeem a card, claim a
-          warranty before it lapses, then mark it done.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3">
-          {closed.map((item, i) => (
-            <div
-              key={item.id}
-              style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
-              className="pv-rise flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-800 bg-ink-925 p-4 transition-colors hover:border-ink-700"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <KindGlyph kind={item.kind} className="h-4 w-4 shrink-0 text-mist-400" />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-mist-200">{item.name}</p>
-                  <p className="mt-0.5 text-xs text-mist-500">
-                    {item.status === 'vetoed' ? 'Cancelled before the charge' : 'Used before it decayed'}
-                    {item.updatedAt ? ` · ${item.updatedAt.slice(0, 10)}` : ''}
-                  </p>
-                </div>
-              </div>
-              <p className="pv-num text-lg font-semibold text-signal-400">
-                +{formatMoney(item.savedAmount ?? 0)}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /* Settings building blocks — the clean canvas-style kit.               */
@@ -198,6 +147,7 @@ const solidBtn = 'bg-signal-400 font-semibold text-ink-950 hover:bg-signal-300';
 
 export function SettingsView({
   items,
+  paymentsCount = 0,
   native,
   onExport,
   onImport,
@@ -206,6 +156,8 @@ export function SettingsView({
   onGoScan,
 }: {
   items: MoneyDateItem[];
+  /** Ledger size for the data rows (v1.5.0). */
+  paymentsCount?: number;
   /** Native capture engine status — present only inside the Android APK. */
   native?: NativeStatusLive;
   onExport: () => string;
@@ -456,9 +408,11 @@ export function SettingsView({
       <Section label="Your data">
         <Row
           title="Stored on this device"
-          support={`${items.length} item${items.length === 1 ? '' : 's'} in local storage. Export moves devices; import merges (existing ids are kept).`}
+          support={`${items.length} item${items.length === 1 ? '' : 's'} on your radar and ${paymentsCount} payment${paymentsCount === 1 ? '' : 's'} in the ledger. Export moves devices; import merges (existing ids are kept).`}
         >
-          <span className="pv-num text-sm font-semibold text-mist-200">{items.length}</span>
+          <span className="pv-num text-sm font-semibold text-mist-200">
+            {items.length} · {paymentsCount}
+          </span>
           <Button size="sm" className={outlineBtn} onClick={download}>
             <Download className="h-3.5 w-3.5" aria-hidden /> Export
           </Button>
@@ -479,7 +433,7 @@ export function SettingsView({
         </Row>
         <Row
           title="Demo data"
-          support="Load a sample set of eight money dates across every kind to see the radar fully lit."
+          support="Load a sample radar, ledger and totals across every kind to see the whole app lit up."
         >
           <Button size="sm" className={outlineBtn} onClick={loadSample}>
             <Sparkles className="h-3.5 w-3.5" aria-hidden /> Load sample
@@ -491,7 +445,7 @@ export function SettingsView({
       <Section label="Danger zone" danger>
         <Row
           title="Erase everything"
-          support="Deletes every item on this device. There is no cloud copy — that's the point."
+          support="Deletes every item and every payment on this device. There is no cloud copy — that's the point."
         >
           <Button
             size="sm"

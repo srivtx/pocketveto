@@ -4,17 +4,24 @@
  * "How do I know autopay detection actually works?" — by proving it, in
  * the app, on the phone, without waiting for a real payment. This module
  * runs the EXACT production pipeline (capturesToText → scanSharedText →
- * detectedToItem) over canned captures shaped like what
- * PaymentListenerService really stores: PhonePe-style notifications with
- * dates, a Paytm single payment, bank-SMS debits, and the junk the
- * pre-filter is supposed to reject (cashback promo, OTP).
+ * chargesToPayments → detectedToItem) over canned captures shaped like
+ * what PaymentListenerService really stores: PhonePe-style notifications
+ * with dates, a Paytm single payment, bank-SMS debits, a plain one-off
+ * UPI transfer, and the junk the pre-filter is supposed to reject
+ * (cashback promo, OTP).
+ *
+ * v1.5.0: the pipeline now proves the split too — Netflix/Hotstar charges
+ * classify as autopays, Ravi's rent share stays a one-off in the Payments
+ * ledger, and the totals add both up without touching each other.
  *
  * Pure and local: no bridge, no network, nothing persisted. The Settings
  * screen surfaces it; tests/selftest.test.ts pins it in CI.
  */
 
-import { scanSharedText, detectedToItem, type DetectedRecurring } from './scan';
+import { scanSharedText, detectedToItem } from './scan';
 import { capturesToText, type NativeCapture } from './native';
+import { chargesToPayments, paymentToItemDraft, spendSummary } from './payments';
+import type { PaymentRecord } from './types';
 
 export interface SelfTestCheck {
   name: string;
@@ -62,6 +69,12 @@ export const SELF_TEST_CAPTURES: NativeCapture[] = [
     ts: 1_791_086_400_000,
   },
   {
+    source: 'com.phonepe.app',
+    title: 'PhonePe',
+    text: 'Paid ₹350.00 to Ravi Sharma',
+    ts: 1_791_100_300_000,
+  },
+  {
     source: 'sms',
     title: 'HDFC Bank',
     text: 'Rs. 1200.50 debited towards SONYLIV on 12-08-26',
@@ -87,20 +100,33 @@ export const SELF_TEST_CAPTURES: NativeCapture[] = [
   },
 ];
 
+/** The fixed stamp so ledger records are deterministic here. */
+const SELF_TEST_NOW = '2026-10-06T09:15:00.000Z';
+
 /** Run the pipeline over the canned set — the detector's proof of life. */
 export function runDetectionSelfTest(): SelfTestResult {
   const text = capturesToText(SELF_TEST_CAPTURES);
   const { parse, detected } = scanSharedText(text, TODAY);
 
+  // The full v1.5.0 loop: parsed charges → ledger records (classified).
+  const ledger: PaymentRecord[] = chargesToPayments(
+    parse.charges,
+    { payments: [], items: [], today: TODAY },
+    { source: 'notification', via: 'Phone capture', now: SELF_TEST_NOW }
+  ).added;
+
   const junkRejected = !parse.charges.some((c) => /cashback|otp/i.test(c.raw));
   const netflix = detected.find((d) => /netflix/i.test(d.merchant));
   const hotstarSingle = parse.charges.find((c) => /hotstar/i.test(c.merchant));
+  const ravi = ledger.find((p) => /ravi/i.test(p.merchant));
+  const netflixLedger = ledger.find((p) => /netflix/i.test(p.merchant));
   const draft = netflix ? detectedToItem(netflix, TODAY) : null;
+  const spend = spendSummary(ledger, TODAY);
 
   const checks: SelfTestCheck[] = [
     {
       name: 'Notifications read as payments',
-      passed: parse.charges.length >= 6,
+      passed: parse.charges.length >= 7,
       detail: `${parse.charges.length} payment${parse.charges.length === 1 ? '' : 's'} read from ${SELF_TEST_CAPTURES.length} notifications`,
     },
     {
@@ -125,11 +151,29 @@ export function runDetectionSelfTest(): SelfTestResult {
         : 'Netflix not detected',
     },
     {
-      name: 'Single payments kept for review',
-      passed: Boolean(hotstarSingle && hotstarSingle.amount === 299),
-      detail: hotstarSingle
-        ? `Hotstar ₹${hotstarSingle.amount} waiting as a one-off card`
-        : 'single payment lost',
+      name: 'One-off payments kept, never tracked',
+      passed: Boolean(ravi && ravi.autopay === false && ravi.source === 'notification'),
+      detail: ravi
+        ? `Ravi ₹${ravi.amount} → Payments ledger as a one-off (not the radar)`
+        : 'one-off payment lost',
+    },
+    {
+      name: 'Payments ledger filled with evidence',
+      passed: Boolean(
+        hotstarSingle && netflixLedger?.autopay === true && netflixLedger?.raw?.includes('Netflix')
+      ),
+      detail: `${ledger.length} records — autopays flagged (${
+        ledger.filter((p) => p.autopay).length
+      }), one-offs separate (${ledger.filter((p) => !p.autopay).length})`,
+    },
+    {
+      name: 'Totals add up (today & this month)',
+      passed:
+        spend.today.total === 649 &&
+        spend.month.total === 1298 &&
+        spend.month.autopay === 948 &&
+        spend.month.oneoff === 350,
+      detail: `today ${spend.today.total} · ${spend.monthLabel} ${spend.month.total} (autopays ${spend.month.autopay} + one-off ${spend.month.oneoff})`,
     },
     {
       name: 'Track-ready item built',
@@ -140,6 +184,19 @@ export function runDetectionSelfTest(): SelfTestResult {
         ? `draft: ${draft.name} · ${draft.recurrence} · ${draft.costAtStake}`
         : 'no draft item produced',
     },
+    {
+      name: 'One-off promote path works by hand',
+      passed: (() => {
+        if (!ravi) return false;
+        const promoted = paymentToItemDraft(ravi, TODAY);
+        return (
+          promoted.costAtStake === 350 &&
+          promoted.recurrence === 'once' &&
+          Boolean(promoted.notes?.includes('Promoted from the Payments ledger'))
+        );
+      })(),
+      detail: 'a ledger entry can be promoted to the radar only by the user',
+    },
   ];
 
   const passed = checks.every((c) => c.passed);
@@ -147,7 +204,7 @@ export function runDetectionSelfTest(): SelfTestResult {
     passed,
     checks,
     summary: passed
-      ? `All ${checks.length} checks passed — detection is working on this device.`
+      ? `All ${checks.length} checks passed — detection and the payments split are working on this device.`
       : 'A check failed — the detector is not behaving as designed.',
   };
 }

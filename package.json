@@ -1,6 +1,6 @@
 {
   "name": "pocketveto",
-  "version": "1.4.4",
+  "version": "1.5.0",
   "description": "Your veto before the charge posts — the local-first radar for every date your money moves. No account, no bank link, no server.",
   "private": true,
   "scripts": {

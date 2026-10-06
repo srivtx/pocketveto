@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { CheckCircle2, Pencil, Trash2 } from 'lucide-react';
+import { CheckCircle2, Pencil, PiggyBank, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { ItemKind, ItemStatus, ItemView } from '@/lib/pocketveto/types';
@@ -46,11 +46,20 @@ export function ItemsView({
   onStatus: (id: string, status: ItemStatus) => void;
   onDelete: (id: string) => void;
 }) {
-  const [filter, setFilter] = useState<ItemKind | 'all'>('all');
+  const [filter, setFilter] = useState<ItemKind | 'all' | 'saved'>('all');
   const [selected, setSelected] = useState<string | null>(null);
 
+  /* The victory lap lives here now (v1.5.0): "Saved" is a filter of the
+     items list, not a fifth tab — the tab bar belongs to Payments. */
+  const savedViews = views.filter((v) => v.status === 'vetoed' || v.status === 'used');
+  const savedTotal = savedViews.reduce((s, v) => s + (v.savedAmount ?? 0), 0);
+
   const list = views
-    .filter((v) => filter === 'all' || v.kind === filter)
+    .filter((v) =>
+      filter === 'saved'
+        ? v.status === 'vetoed' || v.status === 'used'
+        : filter === 'all' || v.kind === filter
+    )
     .sort((a, b) => {
       // actives by urgency first, then closed
       if (a.status !== b.status) return a.status === 'active' ? -1 : 1;
@@ -92,13 +101,41 @@ export function ItemsView({
               </span>
             </button>
           ))}
+          {savedViews.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setFilter('saved')}
+              aria-pressed={filter === 'saved'}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors duration-200 ${
+                filter === 'saved'
+                  ? 'border-signal-500/50 bg-signal-400/15 text-signal-300'
+                  : 'border-ink-800 text-mist-400 hover:border-ink-700 hover:text-mist-200'
+              }`}
+            >
+              <PiggyBank className="h-3 w-3" aria-hidden />
+              Saved
+              <span className="pv-num text-mist-500">({savedViews.length})</span>
+            </button>
+          )}
         </div>
+
+        {filter === 'saved' && (
+          <div className="pv-rise mb-4 rounded-xl border border-signal-500/30 bg-ink-925 p-5 text-center">
+            <p className="pv-num text-3xl font-semibold tracking-tight text-signal-300">
+              {formatMoney(savedTotal)}
+            </p>
+            <p className="mt-1.5 text-xs leading-relaxed text-mist-500">
+              kept instead of lost — vetoes, claims and redemptions you acted on
+            </p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-3">
           {list.length === 0 && (
             <div className="rounded-xl border border-dashed border-ink-800 p-8 text-center text-sm leading-relaxed text-mist-500">
-              Nothing here yet. Add your first money date — the streaming sub you keep
-              forgetting, the gift card in the drawer, the passport.
+              {filter === 'saved'
+                ? 'Nothing saved yet. Veto a trial, redeem a card, claim a warranty — the first entry here feels great.'
+                : 'Nothing here yet. Add your first money date — the streaming sub you keep forgetting, the gift card in the drawer, the passport.'}
             </div>
           )}
           {list.map((item, i) => (

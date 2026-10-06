@@ -4,6 +4,62 @@ All notable changes to PocketVeto are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/).
 
+## [1.5.0] — 2026-10-06
+
+### Added — the Payments ledger (the split, done carefully)
+- **A new Payments tab: every captured payment now lands in a spend
+  ledger instead of pretending to be a subscription.** The bottom nav
+  reads Radar · Items · Scan · Payments · Settings — and the old "Saved"
+  victory lap moved into the Items list as a filter chip (nothing lost,
+  one tab freed). The shell is still five equal cells, icons dead-center.
+- **A real classifier decides where money goes.** Each captured payment
+  is filed as an autopay (feeds the radar) or a one-off (ledger only) by
+  rule priority: matches an item you already track → the notification
+  itself says autopay / mandate / e-mandate / NACH / EMI → known
+  subscription brand (the local catalog) → the ledger's own repeat
+  pattern (same payee, near-same amount, 18–400 day gap). Ambiguity
+  always falls to one-off — nothing sneaks into the subscription tracker.
+  Every record carries the reason and the raw notification line as
+  evidence, shown in a detail sheet.
+- **"Total spent" — today and this calendar month, split autopay vs
+  one-off.** A summary card on the Radar and at the top of Payments,
+  with the count, the split, and an honest zero state. Totals sum the
+  ledger alone, so the radar, the ledger and the totals can never
+  disagree.
+- **Ledger detail sheet + promote path.** Tap any payment to see the
+  evidence, why it was filed that way, and its linked radar item. A
+  one-off that turns out to repeat can be promoted to the radar by hand
+  — the classifier never does that on its own.
+- **Manual payments.** A small add-payment form (payee, amount, date)
+  for payments no notification caught; it classifies like a captured
+  one and counts in the totals the same way.
+- **The capture flow auto-records.** Draining captured notifications
+  (or a share into the app) now writes every parsed payment to the
+  ledger in one pass, with a "N payments saved — X autopay · Y one-off ·
+  Z duplicates skipped" report and a jump into Payments. Manual
+  paste-and-detect runs still never write — statement history never
+  double-counts, one-offs save per-card.
+- **Dedupe that keeps totals honest.** Same payee + amount + date is
+  one payment; a re-posted undated notification of a payment already
+  kept (within 3 days) is skipped, not re-counted. Both the ledger and
+  the in-flight batch are checked.
+- **Schema 2 storage + export v2.** IndexedDB gains a `payments` store
+  (v1 databases upgrade in place), the export format carries items and
+  payments (v1 files still import), and Clear-all/Demo-data cover both
+  stores. Sample data now seeds a ledger so the demo shows real totals.
+- **Self-test grew to 9 checks** — it now proves the split itself:
+  Netflix lands as an autopay, Ravi's transfer stays a one-off in the
+  ledger, the totals add up (649 today / 1298 this month, 948 + 350),
+  and the promote path works by hand only. Pinned by 19 new tests in
+  `tests/payments.test.ts` (106 total).
+
+### Changed
+- Scan's one-off cards say what they are now: "Save" writes to the
+  Payments ledger; a saved autopay offers "Track it"; a saved one-off
+  shows "In Payments" — no more "Add" implying a subscription.
+- Settings data rows count items and payments; the danger zone and
+  demo-data copy cover the ledger.
+
 ## [1.4.4] — 2026-10-06
 
 ### Fixed

@@ -3,7 +3,7 @@
  * Dates are generated relative to today so the radar always demos well.
  */
 
-import type { MoneyDateItem } from './types';
+import type { MoneyDateItem, PaymentRecord } from './types';
 import { addDays, addMonths, todayISO } from './dates';
 import { newId } from './store';
 
@@ -94,6 +94,91 @@ export function sampleItems(): MoneyDateItem[] {
       end: addDays(t, 18),
       recurrence: 'annual',
       notes: 'Email forwarding runs through this domain — losing it loses the mail too.',
+    }),
+  ];
+}
+
+function payment(
+  partial: Omit<PaymentRecord, 'id' | 'createdAt' | 'source'> &
+    Partial<Pick<PaymentRecord, 'source'>>
+): PaymentRecord {
+  return {
+    source: 'notification',
+    ...partial,
+    id: newId(),
+    createdAt: `${partial.date}T10:30:00.000Z`,
+  } as PaymentRecord;
+}
+
+/**
+ * A demo ledger for the Payments tab and the totals: recurring brand
+ * charges (linked to tracked items on load — see linkPaymentsToItem),
+ * day-to-day one-offs, and payments from earlier in the month so the
+ * Today / This-month toggle shows real differences.
+ */
+export function samplePayments(): PaymentRecord[] {
+  const t = todayISO();
+  return [
+    payment({
+      merchant: 'NYT All Access',
+      key: 'NYT ALL',
+      amount: 25,
+      date: addDays(t, -28),
+      via: 'PhonePe',
+      autopay: true,
+      reason: 'NYT is a known subscription brand',
+      raw: 'Paid $25.00 to NYT on the NYT All Access plan',
+    }),
+    payment({
+      merchant: 'NYT All Access',
+      key: 'NYT ALL',
+      amount: 25,
+      date: t,
+      via: 'PhonePe',
+      autopay: true,
+      reason: 'matches NYT All Access on your radar',
+      raw: 'Paid $25.00 to NYT — automatic renewal',
+    }),
+    payment({
+      merchant: 'Spotify',
+      key: 'SPOTIFY',
+      amount: 11.99,
+      date: addDays(t, -12),
+      via: 'Google Pay',
+      autopay: true,
+      reason: 'Spotify is a known subscription brand',
+      raw: 'Paid $11.99 to Spotify — monthly plan',
+    }),
+    payment({
+      merchant: 'Swiggy',
+      key: 'SWIGGY',
+      amount: 9.4,
+      date: addDays(t, -2),
+      via: 'PhonePe',
+      autopay: false,
+      reason: 'paid once — nothing says it repeats',
+      raw: 'Paid $9.40 to Swiggy on lunch order',
+    }),
+    payment({
+      merchant: 'Whole Foods Market',
+      key: 'WHOLE FOODS',
+      amount: 62.35,
+      date: addDays(t, -6),
+      via: 'Added by you',
+      source: 'manual',
+      autopay: false,
+      reason: 'paid once — nothing says it repeats',
+      raw: 'Weekly groceries run',
+    }),
+    payment({
+      merchant: 'Ravi Sharma',
+      key: 'RAVI',
+      amount: 40,
+      date: t,
+      via: 'PhonePe',
+      autopay: false,
+      reason: 'paid once — nothing says it repeats',
+      raw: 'Paid $40.00 to Ravi Sharma via UPI',
     }),
   ];
 }

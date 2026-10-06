@@ -3,7 +3,7 @@
 How PocketVeto finds the charges you forgot. Every rung is graded on
 what it can actually read, not what marketing wishes it could.
 
-## Where we are (v1.4.4)
+## Where we are (v1.5.0)
 
 | Rung | Channel | Status |
 |---|---|---|
@@ -15,13 +15,33 @@ what it can actually read, not what marketing wishes it could.
 
 Rung 3 is the one people actually want: install the APK, flip one
 switch (*Notification access* in system settings) — and every
-PhonePe/GPay/Paytm/bank payment notification lands in the Scan tab as a
-ready-to-track card. The native side captures **raw text only**; parsing
+PhonePe/GPay/Paytm/bank payment notification lands in the ledger as a
+classified payment. The native side captures **raw text only**; parsing
 (amounts, payees, dates, cadence, promo/OTP rejection) runs in the same
-tested detector as the web flows, entirely on-device. Recognized brands
-are flagged as *known subscriptions* (a local catalog — no server), so
-two captures with a fitting rhythm are enough, even across a plan-price
-change.
+tested detector as the web flows, entirely on-device.
+
+### Where a captured payment lands (v1.5.0 — the split)
+
+Every captured payment is recorded in the **Payments ledger** first,
+then classified:
+
+| Evidence | Filed as | Lands |
+|---|---|---|
+| Matches an item you already track | autopay (linked) | ledger + that item's history |
+| Text says autopay / mandate / e-mandate / NACH / EMI | autopay | ledger, offered to the radar |
+| Payee is a known subscription brand (local catalog) | autopay | ledger, offered to the radar |
+| Same payee, near-same amount, 18–400 days apart (ledger's own pattern) | autopay | ledger, offered to the radar |
+| Anything else | **one-off** | ledger only — never the radar |
+
+Ambiguity always falls to one-off. A one-off can be promoted to the
+radar by hand (the promote button in the payment detail sheet); the
+classifier never does it on its own — that bias is the whole point of
+the split: renewal predictions stay accurate, and "total spent" counts
+everything anyway (today / this month, split autopay vs one-off).
+
+Dedup keeps the totals honest: the same payee + amount + date is one
+payment, and a re-posted undated notification of a payment already
+recorded (within 3 days) is skipped, not re-counted.
 
 ## Turning it on — and proving it works
 

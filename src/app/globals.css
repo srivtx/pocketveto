@@ -257,8 +257,20 @@
   }
 }
 
+/* ⚠ Fill-mode trap (bit us twice, then a third time in v1.5.0): this
+   animation must fill BACKWARDS only. Holding the end keyframe after
+   completion leaves an identity transform on the wrapper, and ANY
+   transform — even identity — makes it the containing block for every
+   fixed-position descendant (bottom nav, FAB, toasts, the tutorial, and
+   — v1.5.0 — the Payments detail sheet, which lives INSIDE tab content:
+   its top:50% resolved against the 1080px content box instead of the
+   viewport and the sheet rendered ~360px too low, ghosting over the
+   FAB). Those then anchor to the wrapper's box instead of the viewport.
+   Backwards fill lets every element return to its natural transform:
+   none. (pv-rise's end state equals the natural state, so backwards is
+   visually identical — including during staggered delays.) */
 .pv-rise {
-  animation: pv-rise var(--pv-t-slow) var(--pv-ease) both;
+  animation: pv-rise var(--pv-t-slow) var(--pv-ease) backwards;
 }
 
 .pv-fade {

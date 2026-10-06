@@ -24,17 +24,24 @@ everything stays on your device.
 
 - **Android app** — [download the APK](https://github.com/srivtx/pocketveto/releases/latest/download/PocketVeto-android.apk),
   flip one switch (*Notification access*): PhonePe / GPay / Paytm / bank
-  payment notifications become ready-to-track cards, parsed on-device.
+  payment notifications land in the Payments ledger, parsed and classified
+  on-device — autopays feed the radar, one-offs stay one-offs.
 - **Share** (installed PWA, Android) — share any payment notification straight in.
 - **Paste** — a bank/card statement; recurring charges are found by cadence,
   amount and a local catalog of known subscription brands.
+
+Every captured payment is filed by evidence (tracked item, mandate/EMI
+wording, known brand, repeat pattern) — anything ambiguous stays a
+one-off in the ledger, never a fake subscription. **Total spent**
+(today / this month, split autopay vs one-off) sums it all without
+touching the radar's math.
 
 ## Run it
 
 ```bash
 git clone https://github.com/srivtx/pocketveto.git && cd pocketveto
 bun install && bun run dev     # http://localhost:3000
-bun test                       # 63 tests
+bun test                       # 106 tests
 ```
 
 ## Build the Android APK

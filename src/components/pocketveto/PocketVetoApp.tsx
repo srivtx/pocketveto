@@ -15,11 +15,11 @@ import {
   BellRing,
   ListChecks,
   Pencil,
-  PiggyBank,
   Plus,
   Radar as RadarIcon,
   ScanLine,
   Settings2,
+  Wallet,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,28 +36,30 @@ import {
 import { useItems } from './useItems';
 import { RadarChart } from './RadarChart';
 import { ItemsView } from './ItemsView';
-import { SavedView, SettingsView } from './SavedSettings';
+import { SettingsView } from './SavedSettings';
 import { ItemDialog } from './ItemDialog';
 import { KindGlyph } from './KindGlyph';
 import { Logo } from './Logo';
 import { ScanView } from './ScanView';
+import { PaymentsView, SpendCard } from './PaymentsView';
 import { InstallButton } from './InstallButton';
 import { Welcome } from './Welcome';
 import { useCountUp } from './motion';
 import { useNativeStatus } from '@/lib/pocketveto/native';
 import { toast } from '@/hooks/use-toast';
 import { formatMoney } from '@/lib/pocketveto/risk';
-import { countdownLabel } from '@/lib/pocketveto/dates';
+import { countdownLabel, todayISO } from '@/lib/pocketveto/dates';
+import { paymentToItemDraft } from '@/lib/pocketveto/payments';
 import { KIND_META, type ItemStatus, type MoneyDateItem, type ItemView } from '@/lib/pocketveto/types';
 import { permissionState, requestPermission } from '@/lib/pocketveto/notifications';
 
-type Tab = 'radar' | 'items' | 'scan' | 'saved' | 'settings';
+type Tab = 'radar' | 'items' | 'scan' | 'payments' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: typeof RadarIcon }[] = [
   { id: 'radar', label: 'Radar', icon: RadarIcon },
   { id: 'items', label: 'Items', icon: ListChecks },
   { id: 'scan', label: 'Scan', icon: ScanLine },
-  { id: 'saved', label: 'Saved', icon: PiggyBank },
+  { id: 'payments', label: 'Payments', icon: Wallet },
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ];
 
@@ -80,6 +82,8 @@ export function PocketVetoApp({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<MoneyDateItem | null>(null);
   const [prefill, setPrefill] = useState<Partial<MoneyDateItem> | null>(null);
+  /** Payee key of a single-charge prefill — links ledger payments on save. */
+  const pendingLinkKey = useRef<string | null>(null);
   const [selectedBlip, setSelectedBlip] = useState<ItemView | null>(null);
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
@@ -176,18 +180,25 @@ export function PocketVetoApp({
     setDialogOpen(true);
   }
 
-  /** A shared single payment: fills the form, saves as a NEW item. */
-  function openPrefilled(draft: Omit<MoneyDateItem, 'createdAt' | 'updatedAt'>) {
+  /** A shared single payment: fills the form, saves as a NEW item. The
+   *  payee key rides along so the ledger entry links when it's saved. */
+  function openPrefilled(draft: Omit<MoneyDateItem, 'createdAt' | 'updatedAt'>, key?: string) {
     setEditing(null);
     setPrefill(draft);
+    pendingLinkKey.current = key ?? null;
     setDialogOpen(true);
   }
 
-  function handleSave(item: MoneyDateItem) {
+  async function handleSave(item: MoneyDateItem) {
     if (editing) {
-      void state.updateItem(item);
+      await state.updateItem(item);
     } else {
-      void state.addItem(item);
+      const saved = await state.addItem(item);
+      const linkKey = pendingLinkKey.current;
+      if (linkKey) {
+        await state.linkPaymentsToItem(linkKey, saved.id);
+        pendingLinkKey.current = null;
+      }
     }
   }
 
@@ -290,9 +301,16 @@ export function PocketVetoApp({
             >
               <t.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden />
               <span>{t.label}</span>
-              {t.id === 'saved' && state.saved > 0 && (
+              {/* Desktop tab badges: saved count rides the Items tab,
+                  today's payments ride the Payments tab. */}
+              {t.id === 'items' && state.saved > 0 && (
                 <span className="pv-num rounded-full bg-signal-400/15 px-1.5 text-[10px] font-semibold text-signal-400">
                   {state.items.filter((i) => i.status === 'vetoed' || i.status === 'used').length}
+                </span>
+              )}
+              {t.id === 'payments' && state.spend.today.count > 0 && (
+                <span className="pv-num rounded-full bg-signal-400/15 px-1.5 text-[10px] font-semibold text-signal-400">
+                  {state.spend.today.count}
                 </span>
               )}
             </button>
@@ -432,6 +450,11 @@ export function PocketVetoApp({
               </div>
 
               <div className="grid grid-cols-1 content-start gap-4 min-w-0">
+                {/* Total spent — the ledger's headline, one tap from the
+                    full Payments section. Split autopay vs one-off so the
+                    number can be read, not just seen. */}
+                <SpendCard spend={state.spend} onOpen={() => setTab('payments')} />
+
                 <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
                   <div className="rounded-2xl border border-ink-800 bg-ink-925 p-5">
                     <p className="pv-num text-3xl font-semibold tracking-tight text-cliff-300">
@@ -531,21 +554,46 @@ export function PocketVetoApp({
               autoScan={Boolean(sharedText)}
               native={native}
               onAddSingle={openPrefilled}
-              onTrack={(draft) => {
-                void state.addItem(draft);
+              onTrack={(draft, key) => {
+                void (async () => {
+                  const saved = await state.addItem(draft);
+                  await state.linkPaymentsToItem(key, saved.id);
+                })();
                 toast({
                   title: 'On your radar',
                   description: `${draft.name} is being tracked — you'll get T-7, T-2 and day-of alerts.`,
                 });
               }}
+              onRecordCharges={state.recordCharges}
+              onGoPayments={() => setTab('payments')}
             />
           )}
 
-          {tab === 'saved' && <SavedView items={state.items} />}
+          {tab === 'payments' && (
+            <PaymentsView
+              payments={state.payments}
+              spend={state.spend}
+              items={state.items}
+              onTrack={(p) => {
+                void (async () => {
+                  const saved = await state.addItem(paymentToItemDraft(p, todayISO()));
+                  await state.linkPaymentsToItem(p.key, saved.id);
+                })();
+                toast({
+                  title: 'On your radar',
+                  description: `${p.merchant} is being tracked — you'll get T-7, T-2 and day-of alerts.`,
+                });
+              }}
+              onDelete={(id) => void state.deletePayment(id)}
+              onAddManual={state.addManualPayment}
+              onGoScan={() => setTab('scan')}
+            />
+          )}
 
           {tab === 'settings' && (
             <SettingsView
               items={state.items}
+              paymentsCount={state.payments.length}
               native={native}
               onExport={state.exportJSON}
               onImport={state.importJSON}
@@ -568,9 +616,10 @@ export function PocketVetoApp({
           {TABS.map((t) => {
             const active = tab === t.id;
             const savedCount =
-              t.id === 'saved' && state.saved > 0
+              t.id === 'items' && state.saved > 0
                 ? state.items.filter((i) => i.status === 'vetoed' || i.status === 'used').length
                 : 0;
+            const todayCount = t.id === 'payments' ? state.spend.today.count : 0;
             return (
               <button
                 key={t.id}
@@ -606,6 +655,14 @@ export function PocketVetoApp({
                       aria-hidden
                     >
                       {savedCount}
+                    </span>
+                  )}
+                  {todayCount > 0 && (
+                    <span
+                      className="pv-num absolute -right-2.5 -top-1.5 rounded-full bg-cliff-400 px-1 text-[9px] font-bold text-ink-950"
+                      aria-hidden
+                    >
+                      {todayCount}
                     </span>
                   )}
                 </span>
