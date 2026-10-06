@@ -4,6 +4,39 @@ All notable changes to PocketVeto are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/).
 
+## [1.5.2] — 2026-10-06
+
+### Added — the Copilot PR, reviewed and properly ported
+- **PWA fallback copy wherever the APK is offered.** If a device policy
+  (enterprise / Advanced Protection) blocks sideload installs, the
+  download toast, the Android strip on the landing page, the README,
+  android/README and docs/autodetect.md now all say the same honest
+  thing: that safeguard is platform-side and is not bypassed — use the
+  browser's *Install app* path instead (Share/Paste capture still work;
+  only notification-listener auto-capture needs the APK).
+- The manual-run (workflow_dispatch) artifact upload now includes the
+  `.sha256` sidecar alongside the APK.
+
+### Changed — touch detail
+- The shell's bottom scroll padding now adds `env(safe-area-inset-bottom)`
+  so the last rows clear the taller bottom nav on gesture-nav devices.
+- The radar container is `touch-pan-y select-none`: vertical pans scroll
+  the page instead of fighting the blips, and quick taps can't smear
+  text selection. (Blip hit targets were already 44px since 1.5.1.)
+- The boot scene says what it's doing ("Loading your on-device radar
+  data.") over a soft two-stop glow — a native-feeling first frame for
+  slow storage reads.
+
+### Not taken from the PR (reviewed, rejected)
+- Its `.pv-mobile-canvas::before` backdrop was dead CSS — a z-index:-1
+  pseudo-element paints *under* the shell's opaque `bg-ink-950`, so it
+  never rendered (v1.5.1's background-image vignette on the shell root
+  does the same job and is verified live).
+- Its radar `clamp(280px, 92vw, 340px)` width overflows 320px screens
+  (92vw = 294px vs 288px available). Kept `width: 340, maxWidth: 100%`.
+- Its `pointer: coarse` timing block targeted the blip *button*, but the
+  transition lives on the dot *span* — a no-op. Skipped.
+
 ## [1.5.1] — 2026-10-06
 
 ### Added — trust the artifact, not the re-host

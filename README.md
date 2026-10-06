@@ -29,6 +29,9 @@ everything stays on your device.
   the signature of every APK before it is published, and each release ships
   a `.sha256` sidecar — `sha256sum -c PocketVeto-android.apk.sha256` after
   downloading proves you hold the exact bytes CI signed off on.
+  Android/Play Protect safety checks still apply to sideloaded apps; if
+  your device policy blocks sideload installs, use the browser
+  "Install app" path for the PWA instead.
 - **Share** (installed PWA, Android) — share any payment notification straight in.
 - **Paste** — a bank/card statement; recurring charges are found by cadence,
   amount and a local catalog of known subscription brands.

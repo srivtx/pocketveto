@@ -193,7 +193,8 @@ function AndroidStrip() {
           <Smartphone className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden />
           <span>
             You&apos;re on Android — the PocketVeto app installs in one tap and
-            auto-detects payments from your notifications.
+            auto-detects payments from your notifications. If your phone blocks
+            sideloading, use the browser&apos;s Install app path (PWA).
           </span>
         </p>
         <div className="flex shrink-0 items-center gap-1.5">

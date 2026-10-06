@@ -213,9 +213,14 @@ export function PocketVetoApp({
 
   if (!state.ready) {
     return (
-      <div className="pv-canvas flex min-h-dvh flex-col items-center justify-center gap-4 bg-ink-950">
+      <div className="pv-canvas relative flex min-h-dvh flex-col items-center justify-center gap-4 overflow-hidden bg-ink-950 px-6 text-center">
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,oklch(0.8_0.168_163/0.12),transparent_52%),radial-gradient(circle_at_50%_100%,oklch(0.7_0.19_22/0.08),transparent_58%)]"
+          aria-hidden
+        />
         <Logo className="h-10 w-10 animate-pulse text-signal-400" />
         <p className="pv-label">Scanning…</p>
+        <p className="max-w-xs text-sm text-mist-500">Loading your on-device radar data.</p>
       </div>
     );
   }
@@ -323,7 +328,7 @@ export function PocketVetoApp({
         </nav>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-[9rem] md:pb-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-[calc(9rem+env(safe-area-inset-bottom))] md:pb-6">
         {/* Notification nudge */}
         {needsPermission && tab === 'radar' && (
           <div className="pv-rise mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-signal-500/30 bg-signal-400/10 p-4">

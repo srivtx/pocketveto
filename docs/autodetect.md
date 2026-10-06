@@ -118,6 +118,9 @@ be blocked outright. What that means here:
   bit-identical to what CI verified.
 - At install, choose **"Scan app"** when Play Protect asks — it is a
   genuinely good idea for any APK.
+- If Android still auto-removes or blocks the install under a device
+  policy, that safeguard cannot be bypassed by this project — use the
+  PWA install path (browser menu → Install app) instead.
 - For updates without Play: **Obtainium** (FOSS) tracks GitHub Releases
   and updates this app in one tap — the recommended install path.
 - If Play distribution ever matters more than auto-capture, the TWA

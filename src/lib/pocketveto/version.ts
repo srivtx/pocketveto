@@ -6,4 +6,4 @@
  * BuildConfig.VERSION_NAME — Settings shows that when present, so the
  * app can always prove which build it is.
  */
-export const APP_VERSION = '1.5.1';
+export const APP_VERSION = '1.5.2';

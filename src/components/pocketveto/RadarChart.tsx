@@ -97,7 +97,7 @@ export function RadarChart({
   const hot = (b: RadarBlip) => b.item.urgency === 'critical' || b.item.urgency === 'overdue';
 
   return (
-    <div className="relative mx-auto" style={{ width: SIZE, maxWidth: '100%' }}>
+    <div className="relative mx-auto touch-pan-y select-none" style={{ width: SIZE, maxWidth: '100%' }}>
       <svg
         viewBox={`0 0 ${SIZE} ${SIZE}`}
         className="h-auto w-full"

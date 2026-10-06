@@ -59,6 +59,16 @@ capture, the APK installs through the ordinary "allow unknown apps"
 flow, and payments from PhonePe / GPay / Paytm / bank apps are still
 captured automatically.
 
+Install-time safety behavior is still controlled by Android/Play Protect:
+
+- Some devices (especially with stricter enterprise or Advanced Protection
+  policies) can block sideload APK installs outright.
+- PocketVeto does not bypass or weaken those safeguards.
+- If sideloading is blocked on your device, use the installed PWA path
+  (browser menu → **Install app / Add to Home Screen**) instead — capture
+  via Share and Paste still works there, only notification-listener
+  auto-capture needs the APK.
+
 ## Signing key
 
 `keystore/pocketveto.jks` is committed to the repository **on purpose**.
