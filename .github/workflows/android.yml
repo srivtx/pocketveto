@@ -51,6 +51,15 @@ jobs:
         working-directory: android
         run: gradle assembleRelease --no-daemon
 
+      - name: Verify APK signing/cert metadata
+        run: |
+          APKSIGNER="$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner | sort -V | tail -n1)"
+          if [ -z "${APKSIGNER}" ]; then
+            echo "apksigner not found in \$ANDROID_HOME/build-tools"
+            exit 1
+          fi
+          "${APKSIGNER}" verify --verbose --print-certs android/app/build/outputs/apk/release/app-release.apk
+
       - name: Rename APK
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk \
@@ -59,6 +68,7 @@ jobs:
           # releases/latest/download/PocketVeto-android.apk forever.
           cp android/app/build/outputs/apk/release/app-release.apk \
              PocketVeto-android.apk
+          sha256sum PocketVeto-android.apk > PocketVeto-android.apk.sha256
 
       - name: Attach to Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -67,6 +77,7 @@ jobs:
           files: |
             PocketVeto-*-android.apk
             PocketVeto-android.apk
+            PocketVeto-android.apk.sha256
           generate_release_notes: true
           draft: false
           prerelease: false
@@ -76,4 +87,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pocketveto-android-apk
-          path: PocketVeto-android.apk
+          path: |
+            PocketVeto-android.apk
+            PocketVeto-android.apk.sha256

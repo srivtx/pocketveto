@@ -341,6 +341,23 @@
   -webkit-mask-image: radial-gradient(ellipse 75% 75% at center, black 25%, transparent 78%);
 }
 
+.pv-mobile-canvas {
+  position: relative;
+}
+
+@media (max-width: 767px) {
+  .pv-mobile-canvas::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 50% -8%, oklch(0.8 0.168 163 / 0.11), transparent 42%),
+      radial-gradient(circle at 100% 100%, oklch(0.7 0.19 22 / 0.08), transparent 50%);
+    z-index: -1;
+  }
+}
+
 ::selection {
   background: oklch(0.8 0.168 163 / 0.28);
 }
@@ -387,5 +404,15 @@
   .pv-sweep-origin {
     animation: none;
     opacity: 0.45;
+  }
+}
+
+@media (pointer: coarse) {
+  .pv-sweep-origin {
+    animation-duration: 9s;
+  }
+
+  .pv-blip {
+    transition-duration: 520ms;
   }
 }

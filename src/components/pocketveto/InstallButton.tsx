@@ -57,7 +57,8 @@ export function InstallButton({ size = 'sm' }: { size?: 'sm' | 'lg' | 'default' 
           window.open(APK_LATEST_URL, '_blank', 'noopener');
           toast({
             title: 'Getting PocketVeto',
-            description: 'The APK downloads from the latest GitHub release — open it to install.',
+            description:
+              'The APK downloads from the latest GitHub release. If Android blocks sideloading on this device, use “Install app” from the browser menu for the PWA path.',
           });
         }}
         size={size}

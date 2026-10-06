@@ -4,6 +4,19 @@ All notable changes to PocketVeto are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- Android release CI now verifies the built APK signature/certificate
+  (`apksigner verify --print-certs`) before publish and attaches a
+  `PocketVeto-android.apk.sha256` checksum file to release artifacts.
+- Install guidance now explicitly distinguishes Android/Play Protect
+  sideload policy blocks from PocketVeto behavior, and points blocked
+  devices to the supported PWA install path.
+- Small-screen shell polish: dynamic-viewport loading state, safe-area
+  bottom spacing, smoother motion-safe FAB/radar interactions, and a
+  subtle mobile canvas backdrop treatment.
+
 ## [1.4.4] — 2026-10-06
 
 ### Fixed

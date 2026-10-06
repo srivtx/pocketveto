@@ -97,7 +97,7 @@ export function RadarChart({
   const hot = (b: RadarBlip) => b.item.urgency === 'critical' || b.item.urgency === 'overdue';
 
   return (
-    <div className="relative mx-auto" style={{ width: SIZE, maxWidth: '100%' }}>
+    <div className="relative mx-auto touch-pan-y select-none" style={{ width: 'clamp(280px, 92vw, 340px)', maxWidth: '100%' }}>
       <svg
         viewBox={`0 0 ${SIZE} ${SIZE}`}
         className="h-auto w-full"
@@ -179,7 +179,7 @@ export function RadarChart({
             key={b.item.id}
             type="button"
             onClick={() => onSelect?.(b.item)}
-            className="pv-blip pv-pop group absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center focus:outline-none"
+            className="pv-blip pv-pop group absolute flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center focus:outline-none"
             style={{
               left: `${(b.x / SIZE) * 100}%`,
               top: `${(b.y / SIZE) * 100}%`,
@@ -195,7 +195,7 @@ export function RadarChart({
               />
             )}
             <span
-              className="relative block h-3.5 w-3.5 rounded-full border-2 border-ink-950 transition-transform duration-200 ease-out group-hover:scale-150 group-focus-visible:scale-150"
+              className="relative block h-3.5 w-3.5 rounded-full border-2 border-ink-950 transition-transform duration-200 ease-out motion-safe:group-hover:scale-150 motion-safe:group-focus-visible:scale-150"
               style={{ backgroundColor: b.color, boxShadow: `0 0 12px ${b.color}` }}
             />
             <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-md border border-ink-800 bg-ink-925 px-2 py-1 text-[11px] text-mist-300 shadow-xl group-hover:flex group-focus-within:flex">

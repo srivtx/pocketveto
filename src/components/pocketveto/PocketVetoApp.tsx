@@ -202,9 +202,11 @@ export function PocketVetoApp({
 
   if (!state.ready) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-ink-950">
+      <div className="relative flex min-h-dvh flex-col items-center justify-center gap-4 overflow-hidden bg-ink-950 px-6 text-center">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,oklch(0.8_0.168_163/0.14),transparent_52%),radial-gradient(circle_at_50%_100%,oklch(0.7_0.19_22/0.1),transparent_58%)]" />
         <Logo className="h-10 w-10 animate-pulse text-signal-400" />
         <p className="pv-label">Scanning…</p>
+        <p className="max-w-xs text-sm text-mist-500">Loading your on-device radar data.</p>
       </div>
     );
   }
@@ -305,7 +307,7 @@ export function PocketVetoApp({
         </nav>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-[9rem] md:pb-6">
+      <main className="pv-mobile-canvas mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-[calc(9rem+env(safe-area-inset-bottom))] md:pb-6">
         {/* Notification nudge */}
         {needsPermission && tab === 'radar' && (
           <div className="pv-rise mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-signal-500/30 bg-signal-400/10 p-4">
@@ -630,7 +632,7 @@ export function PocketVetoApp({
         size="icon"
         aria-label="Add a money date"
         aria-hidden={fabAway}
-        className={`pv-chrome fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 h-14 w-14 rounded-full bg-signal-400 text-ink-950 shadow-xl shadow-black/40 transition-all duration-300 hover:scale-105 hover:bg-signal-300 active:scale-95 md:hidden ${
+        className={`pv-chrome fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 h-14 w-14 rounded-full bg-signal-400 text-ink-950 shadow-xl shadow-black/40 transition-all duration-300 motion-safe:hover:scale-105 motion-safe:hover:bg-signal-300 motion-safe:active:scale-95 md:hidden ${
           fabAway ? 'pointer-events-none translate-y-24 opacity-0' : ''
         }`}
       >

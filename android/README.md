@@ -31,6 +31,10 @@ cd android && gradle assembleRelease  # needs JDK 17 + Android SDK 35
 
 Output: `android/app/build/outputs/apk/release/app-release.apk`.
 
+CI also verifies the release APK signature/certificate with `apksigner`
+and publishes `PocketVeto-android.apk.sha256` alongside the APK so users
+can integrity-check the downloaded bytes.
+
 The bundling step is a script, not a raw `rsync`, for a reason: Android's
 aapt2 silently drops asset directories starting with `_` (default ignore
 pattern `<dir>_*`), which is exactly where Next.js puts its payload
@@ -47,6 +51,13 @@ an "identity and financial fraud" warning. With notification-only
 capture, the APK installs through the ordinary "allow unknown apps"
 flow, and payments from PhonePe / GPay / Paytm / bank apps are still
 captured automatically.
+
+Install-time safety behavior is still controlled by Android/Play Protect:
+- Some devices (especially with stricter enterprise or Advanced Protection
+  policies) can block sideload APK installs outright.
+- PocketVeto does not bypass or weaken those safeguards.
+- If sideloading is blocked on your device, use the installed PWA path
+  (browser menu → **Install app / Add to Home Screen**) instead.
 
 ## Signing key
 

@@ -25,6 +25,9 @@ everything stays on your device.
 - **Android app** — [download the APK](https://github.com/srivtx/pocketveto/releases/latest/download/PocketVeto-android.apk),
   flip one switch (*Notification access*): PhonePe / GPay / Paytm / bank
   payment notifications become ready-to-track cards, parsed on-device.
+  Android/Play Protect safety checks still apply to sideloaded apps; if
+  your device policy blocks sideload installs, use the browser "Install
+  app" path for the PWA.
 - **Share** (installed PWA, Android) — share any payment notification straight in.
 - **Paste** — a bank/card statement; recurring charges are found by cadence,
   amount and a local catalog of known subscription brands.
@@ -45,6 +48,8 @@ cd android && gradle assembleRelease   # JDK 17 + Android SDK 35
 ```
 
 CI builds and signs it on every tag — details in [android/README.md](android/README.md).
+Each Android release now includes `PocketVeto-android.apk.sha256` and CI
+runs `apksigner verify --print-certs` before publishing.
 
 ---
 

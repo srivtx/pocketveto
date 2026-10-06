@@ -92,8 +92,13 @@ be blocked outright. What that means here:
   source-auditable, signed with the committed sideload key. Every
   release re-attaches a stable filename, so
   `releases/latest/download/PocketVeto-android.apk` always resolves.
+  CI also verifies cert/signature metadata and publishes
+  `PocketVeto-android.apk.sha256` for byte-level integrity checks.
 - At install, choose **"Scan app"** when Play Protect asks — it is a
   genuinely good idea for any APK.
+- If Android still auto-removes or blocks install on your device policy,
+  that safeguard cannot be bypassed by this project; use the PWA install
+  path instead.
 - For updates without Play: **Obtainium** (FOSS) tracks GitHub Releases
   and updates this app in one tap — the recommended install path.
 - If Play distribution ever matters more than auto-capture, the TWA
