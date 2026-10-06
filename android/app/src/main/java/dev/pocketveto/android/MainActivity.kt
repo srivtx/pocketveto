@@ -267,8 +267,10 @@ class MainActivity : Activity() {
         fun rebindCapture(): Boolean {
             if (!notifAccessGranted()) return false
             try {
+                // `this` inside this inner class is the BRIDGE, not the
+                // activity — the component must name the activity's package.
                 NotificationListenerService.requestRebind(
-                    ComponentName(this, PaymentListenerService::class.java)
+                    ComponentName(this@MainActivity, PaymentListenerService::class.java)
                 )
             } catch (_: Exception) {
                 // the request may still have landed — report attempted.
