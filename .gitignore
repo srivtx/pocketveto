@@ -21,11 +21,17 @@ server.log
 .vercel
 tsconfig.tsbuildinfo
 
-# android build artifacts (the keystore IS committed — see android/README.md)
+# android build artifacts
 android/.gradle/
 android/.kotlin/
 android/app/build/
 android/local.properties
+
+# v1.5.4: the release keystore is PRIVATE — GitHub Actions decodes it from
+# the PV_KEYSTORE_BASE64 secret into android/keystore/ at build time. Never
+# commit a keystore here again: the previous publicly-committed key had to
+# be retired because its identity carried a cached Play Protect verdict.
+android/keystore/
 
 # the bundled web export (CI builds it via scripts/prepare-android-assets.mjs)
 android/app/src/main/assets/

@@ -8,13 +8,23 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "dev.pocketveto.android"
+        // v1.5.4: the applicationId changed on purpose (was
+        // dev.pocketveto.android). Play Protect caches its verdict per
+        // (package name + signing certificate): this app was flagged in the
+        // v1.4.0/1.4.1 SMS-receiver era, and every later release re-matched
+        // the SAME identity — code fixes can never clear a cached verdict.
+        // New package + new signing key (see below) = a genuinely new app
+        // identity with no history. The Kotlin namespace stays
+        // dev.pocketveto.android so no code changes; every component check
+        // in the shell already uses the runtime packageName, so a split
+        // namespace/applicationId is safe here (audited v1.5.4).
+        applicationId = "dev.pocketveto.app"
         // targetSdk 34 on purpose: 35 forces edge-to-edge, and this shell's
         // single WebView has no inset handling yet. Sideload-only for now.
         targetSdk = 34
         minSdk = 26
-        versionCode = 9
-        versionName = "1.5.3"
+        versionCode = 10
+        versionName = "1.5.4"
     }
 
     buildFeatures {
@@ -22,14 +32,19 @@ android {
     }
 
     signingConfigs {
-        // A sideload key, committed on purpose — see android/README.md.
-        // It exists for update continuity (installs upgrade in place),
-        // not for secrecy. This app is not distributed via Play Store.
+        // v1.5.4: the release key is PRIVATE now and lives only in GitHub
+        // Actions secrets (PV_*), decoded by the workflow at build time —
+        // the previous key was committed publicly and its identity had a
+        // cached Play Protect "harmful" verdict attached, so it is retired.
+        // Local builds: export PV_STORE_FILE / PV_STORE_PASSWORD /
+        // PV_KEY_ALIAS / PV_KEY_PASSWORD (path relative to android/) or
+        // build assembleDebug. Without the envs, assembleRelease produces
+        // an unsigned APK (app-release-unsigned.apk) instead of failing.
         create("release") {
-            storeFile = rootProject.file("keystore/pocketveto.jks")
-            storePassword = "pocketveto"
-            keyAlias = "pocketveto"
-            keyPassword = "pocketveto"
+            System.getenv("PV_STORE_FILE")?.let { storeFile = rootProject.file(it) }
+            System.getenv("PV_STORE_PASSWORD")?.let { storePassword = it }
+            System.getenv("PV_KEY_ALIAS")?.let { keyAlias = it }
+            System.getenv("PV_KEY_PASSWORD")?.let { keyPassword = it }
         }
     }
 

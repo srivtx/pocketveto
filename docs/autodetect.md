@@ -146,8 +146,26 @@ be blocked outright. What that means here:
   installs through the ordinary "allow unknown apps" flow. The capture
   engine lost nothing that matters: PhonePe, GPay, Paytm and bank apps
   all announce payments through notifications.
+- **v1.5.4 reset the install identity.** Removing the SMS receiver fixed
+  the app, but Play Protect caches its verdict per **(package name +
+  signing certificate)** — and the project kept releasing under the exact
+  pair it had when first flagged, so every clean release still re-matched
+  the cached "harmful" verdict: the block dialog with *no* "Install
+  anyway", or the app vanishing minutes after install ("Play Protect
+  removed an app"). v1.5.4 ships under a **new, private signing key**
+  (GitHub Actions secrets — the old one was public in the repo and is
+  retired) and a **new package id** (`dev.pocketveto.app`), i.e. an
+  identity with no history. Uninstall older versions first; a different
+  signature cannot update in place.
+- **If Play Protect still shows the hard block** (no "Install anyway"):
+  Play Store → profile icon → Play Protect → ⚙ Settings → turn *off*
+  "Scan apps with Play Protect" → install the APK (verify:
+  `sha256sum -c PocketVeto-android.apk.sha256`) → turn scanning *back
+  on*. The long-term reputation fix is Play Console open testing, if
+  that day ever comes.
 - The APK is built by public CI from this repository — reproducible,
-  source-auditable, signed with the committed sideload key. Every
+  source-auditable, signed with the private release key (CI pins the
+  signer certificate digest before publishing). Every
   release re-attaches a stable filename, so
   `releases/latest/download/PocketVeto-android.apk` always resolves.
 - Since v1.5.1, CI runs `apksigner verify --print-certs` on the APK

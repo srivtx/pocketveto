@@ -4,6 +4,53 @@ All notable changes to PocketVeto are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/).
 
+## [1.5.4] — 2026-10-07
+
+### Fixed — "Play Protect removes it": the install identity reset
+
+- **Why nothing we shipped ever fixed the install.** Play Protect caches
+  its verdict per **(package name + signing certificate)**. PocketVeto
+  was first flagged in the v1.4.0/v1.4.1 SMS-receiver era, and from
+  v1.4.0 to v1.5.3 every release shipped the *same* pair — a keystore
+  committed publicly to the repo, package `dev.pocketveto.android` — so
+  however clean the app became, each install re-matched the cached
+  verdict. That verdict is the hard-block tier: the dialog offers **no
+  "Install anyway"** (that escape hatch exists only on the soft
+  "unknown app" warning), and newer Androids additionally *remove* the
+  app shortly after install ("Play Protect removed an app"). Deleting
+  the SMS receiver, fixing the blank screen, hardening CI — none of it
+  could touch the cache, because identity, not code, is the key.
+- **v1.5.4 is a new identity.** A **new, private signing key** —
+  generated fresh, stored only in GitHub Actions secrets
+  (`PV_KEYSTORE_BASE64` / `PV_STORE_PASSWORD` / `PV_KEY_ALIAS` /
+  `PV_KEY_PASSWORD`), decoded by CI at build time; the old public
+  keystore is removed from the tree (it remains only in history, where
+  it signs nothing) — and a **new application id**
+  (`dev.pocketveto.app`; the Kotlin namespace is unchanged and every
+  component check in the shell uses the runtime package name, so the
+  split is safe). Fresh identity ⇒ no inherited verdict.
+- **The release pipeline now proves the signer.** CI fails the build if
+  the secrets are missing (gradle would otherwise silently emit an
+  unsigned APK), and pins the v1.5.4 release key's SHA-256 digest in
+  `apksigner verify --print-certs` before publishing — an APK signed by
+  anything else can never reach a release. `versionCode` 10.
+- **What this means for an existing install:** uninstall older
+  PocketVeto first — a different signature cannot update in place
+  (there is no data worth migrating through a blocked install). Then
+  install the v1.5.4 APK. If Play Protect *still* shows a hard block,
+  pause the scan for the install — Play Store → profile → Play Protect
+  → ⚙ → *Scan apps with Play Protect* off → install → scanning back
+  on. Full walkthrough: `android/README.md` → "When Play Protect blocks
+  the install".
+
+### Changed
+- Signing key rotation is documented end-to-end (android/README,
+  autodetect.md, README) including the recovery path if the key is
+  ever lost: new key, new secrets, new pinned digest, reinstall.
+- Local release builds: export `PV_STORE_FILE` / `PV_STORE_PASSWORD` /
+  `PV_KEY_ALIAS` / `PV_KEY_PASSWORD`; without them `assembleRelease`
+  intentionally produces an unsigned APK instead of pretending.
+
 ## [1.5.3] — 2026-10-07
 
 ### Fixed — "the OS removes it": the notification-access lifecycle

@@ -1,8 +1,13 @@
 name: Android APK
 
 # Builds the PocketVeto Android app: web export (NEXT_STATIC=1) bundled
-# into the native shell, assembled, signed with the sideload key, and
-# attached to a GitHub Release. Sideload distribution — no Play Store.
+# into the native shell, assembled, signed with the PRIVATE release key
+# (decoded from the PV_* Actions secrets — never committed), and attached
+# to a GitHub Release. Sideload distribution — no Play Store.
+#
+# v1.5.4 identity reset: the old public keystore + old applicationId were
+# retired because Play Protect caches verdicts per (package + cert) —
+# this build is signed by a fresh key under a fresh package id.
 
 on:
   push:
@@ -47,9 +52,41 @@ jobs:
         with:
           gradle-version: '8.11.1'
 
+      - name: Restore the release keystore (Actions secret → disk)
+        working-directory: android
+        run: |
+          # The release key is private: it exists only in the repo's
+          # Actions secrets. Decode it into the gitignored android/keystore/
+          # dir just for this build; it never lands in the tree.
+          mkdir -p keystore
+          printf '%s' "${PV_KEYSTORE_BASE64:?PV_KEYSTORE_BASE64 secret is missing — cannot sign}" \
+            | base64 -d > keystore/pocketveto-release.jks
+          # sanity: a JKS/PKCS12 store is binary and ≥ 1 KB; a bad decode
+          # (e.g. base64 with newlines mangled) would be tiny or text.
+          size=$(stat -c%s keystore/pocketveto-release.jks)
+          [ "$size" -ge 1000 ] || { echo "decoded keystore looks wrong ($size bytes)" >&2; exit 1; }
+        env:
+          PV_KEYSTORE_BASE64: ${{ secrets.PV_KEYSTORE_BASE64 }}
+
       - name: Assemble release APK
         working-directory: android
+        env:
+          PV_STORE_FILE: keystore/pocketveto-release.jks
+          PV_STORE_PASSWORD: ${{ secrets.PV_STORE_PASSWORD }}
+          PV_KEY_ALIAS: ${{ secrets.PV_KEY_ALIAS }}
+          PV_KEY_PASSWORD: ${{ secrets.PV_KEY_PASSWORD }}
         run: gradle assembleRelease --no-daemon
+
+      - name: Fail fast on an unsigned build
+        run: |
+          # If the secrets were missing/blank, gradle silently emits an
+          # UNSIGNED apk instead of failing. An unsigned APK cannot install
+          # ("app not installed" on every device), so fail here, loudly.
+          if [ ! -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            echo "app-release.apk missing — the build produced app-release-unsigned.apk instead (secrets not injected?)" >&2
+            ls -la android/app/build/outputs/apk/release/ || true
+            exit 1
+          fi
 
       - name: Verify APK signature and cert before publish
         run: |
@@ -66,6 +103,21 @@ jobs:
           fi
           "${APKSIGNER}" verify --verbose --print-certs \
             android/app/build/outputs/apk/release/app-release.apk
+          # Pin the expected signer identity (v1.5.4 release key). The
+          # digest is public information — pinning it means a build signed
+          # by anything other than THE release key can never publish.
+          # (apksigner prints the digest colonless lowercase hex; tr also
+          # tolerates colon-separated variants just in case.)
+          if ! "${APKSIGNER}" verify --print-certs \
+              android/app/build/outputs/apk/release/app-release.apk \
+              | tr -d ' :' | grep -qi \
+              "b43c0561ff19a14ebaf0efd3a8cd55c3ef117d2ab1afd02377a3260e7bfc5e79"; then
+            echo "SIGNER MISMATCH: APK is not signed by the v1.5.4 release key" >&2
+            "${APKSIGNER}" verify --print-certs \
+              android/app/build/outputs/apk/release/app-release.apk >&2 || true
+            exit 1
+          fi
+          echo "Signer certificate pinned: v1.5.4 release key OK"
 
       - name: Rename APK and record checksums
         run: |
@@ -91,6 +143,26 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          body: |
+            ## Installing when Play Protect blocks it
+
+            Play Protect verdicts are cached per **package + signing key**.
+            v1.5.4 is a brand-new identity (new private signing key, new
+            package id `dev.pocketveto.app`), so nothing from older versions
+            carries over — **uninstall any older PocketVeto first** (a
+            different signature cannot update in place anyway).
+
+            If Play Protect still shows a block with no "Install anyway"
+            option (the hard-block tier for unknown sideloaded apps):
+
+            1. **Play Store → your profile icon → Play Protect → ⚙ Settings**
+            2. Turn **off** "Scan apps with Play Protect" (and "Improve
+               harmful app detection" if shown)
+            3. Install the APK (`PocketVeto-android.apk`)
+            4. Turn scanning **back on** — the fresh identity starts with a
+               clean record
+
+            Always verify the download: `sha256sum -c PocketVeto-android.apk.sha256`
           files: |
             PocketVeto-*-android.apk
             PocketVeto-android.apk

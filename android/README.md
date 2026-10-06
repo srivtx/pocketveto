@@ -31,9 +31,19 @@ cd android && gradle assembleRelease  # needs JDK 17 + Android SDK 35
 
 Output: `android/app/build/outputs/apk/release/app-release.apk`.
 
+CI signs automatically: the release key is decoded from the repo's
+`PV_*` Actions secrets (`PV_KEYSTORE_BASE64`, `PV_STORE_PASSWORD`,
+`PV_KEY_ALIAS`, `PV_KEY_PASSWORD`) into the gitignored
+`android/keystore/pocketveto-release.jks`. For a **local** signed build,
+export the same four variables (`PV_STORE_FILE` is the keystore path
+relative to `android/`) — without them, `assembleRelease` produces an
+unsigned APK on purpose, and the workflow fails loudly rather than
+publishing one.
+
 Before publishing, CI runs `apksigner verify --print-certs` on the
-finished APK (the signer cert digest lands in the build log) and writes
-a `.sha256` sidecar for both release filenames. After downloading:
+finished APK and pins the v1.5.4 release-key digest — a build signed by
+any other key cannot publish. A `.sha256` sidecar is written for both
+release filenames. After downloading:
 
 ```bash
 sha256sum -c PocketVeto-android.apk.sha256
@@ -59,6 +69,26 @@ capture, the APK installs through the ordinary "allow unknown apps"
 flow, and payments from PhonePe / GPay / Paytm / bank apps are still
 captured automatically.
 
+**The v1.5.4 identity reset, and why it was needed.** Removing the SMS
+receiver fixed the app but did not fix the *install*: Play Protect
+caches its verdict per **(package name + signing certificate)**, and
+PocketVeto kept shipping the *same* pair (committed public keystore,
+`dev.pocketveto.android`) it had when first flagged — so every release,
+however clean, re-matched the cached "harmful" verdict. That is the
+classification tier whose dialog offers **no "Install anyway"** and
+which removes the app right after install ("Play Protect removed an
+app"). v1.5.4 therefore ships as a genuinely new identity:
+
+- a **new, private signing key** (Actions secrets — see below),
+- a **new application id** (`dev.pocketveto.app`; the Kotlin namespace
+  is unchanged, and every component check in the shell uses the runtime
+  package name, so the split is safe),
+- a bumped `versionCode`.
+
+Uninstall any older PocketVeto before installing v1.5.4 — a different
+signature cannot update in place, and there is no data to migrate
+through a blocked install anyway.
+
 Install-time safety behavior is still controlled by Android/Play Protect:
 
 - Some devices (especially with stricter enterprise or Advanced Protection
@@ -69,13 +99,49 @@ Install-time safety behavior is still controlled by Android/Play Protect:
   via Share and Paste still works there, only notification-listener
   auto-capture needs the APK.
 
+### When Play Protect blocks the install (no "Install anyway")
+
+The "unsafe app blocked" dialog has two tiers: the soft one (unknown
+app) offers **More details → Install anyway (unsafe)**; the hard one
+(harmful-class verdict) offers nothing. If you land on the hard tier —
+or the app installs and is removed minutes later with a "Play Protect
+removed an app" notification — pause the scan for the install:
+
+1. Open the **Play Store** → tap your **profile icon** → **Play Protect**
+   → **Settings (⚙)**.
+2. Turn **off** *Scan apps with Play Protect* (and, if shown, *Improve
+   harmful app detection*).
+3. Install the PocketVeto APK (verify it first:
+   `sha256sum -c PocketVeto-android.apk.sha256`).
+4. Turn scanning **back on**. A fresh-signed identity starts with a clean
+   record; if it is ever flagged again, that is new information worth
+   reporting — not a verdict inherited from the old identity.
+
+OEM variants: on some Xiaomi/Redmi (MIUI) and Samsung devices the scan
+lives in the OEM's "security" app too (MIUI: Security → settings;
+Samsung: Device care). The Play Store path above is the one that governs
+Play Protect itself.
+
+The long-term fix for reputation is the Play Console's open-testing
+track ($25 once, if PocketVeto ever wants it).
+
 ## Signing key
 
-`keystore/pocketveto.jks` is committed to the repository **on purpose**.
-It is a sideload key: it exists so every release signs consistently and
-installs upgrade over the previous one. It guards nothing — treat it as
-public. If PocketVeto ever ships on Play Store, the store key will be a
-different, actually-private one.
+**Private, and only in Actions secrets.** `PV_KEYSTORE_BASE64` (the
+base64 of `keystore/pocketveto-release.jks`), `PV_STORE_PASSWORD`,
+`PV_KEY_ALIAS`, `PV_KEY_PASSWORD`. The workflow decodes it at build
+time into the gitignored `android/keystore/` directory; the signer
+certificate's SHA-256 is pinned in the workflow so no other key can
+publish a release. If the key is ever lost, releases can still be cut
+by generating a new key, updating the secrets and the pinned digest —
+users then uninstall/reinstall (updates across different signatures
+are impossible by Android design).
+
+History: v1.4.0–v1.5.3 shipped a keystore committed *publicly* on
+purpose (sideload continuity over secrecy). That identity is retired:
+it carried the cached Play Protect verdict described above, and a
+public signing key is by definition not a trustworthy identity. It
+remains in git history, uselessly — it signs nothing anymore.
 
 ## Permissions, honestly
 
