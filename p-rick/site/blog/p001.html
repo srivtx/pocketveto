@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Phone Sees Everything and Remembers Nothing — p-rick</title>
+<meta name="description" content="A p-rick research blog post by the p-rick research program: Your Phone Sees Everything and Remembers Nothing">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body class="blog-page">
+<header class="site-header">
+  <a class="brand" href="../index.html"><span class="brand-mark">p-rick</span><span class="brand-sub">research</span></a>
+  <nav><a href="../index.html#papers">Papers</a><a href="../index.html#blogs">Blog</a><a href="../index.html#about">About</a></nav>
+</header>
+<main class="blog-main">
+  <article class="post">
+    <div class="post-kicker">blog &middot; companion to P-001</div>
+    <h1 class="post-title">Your Phone Sees Everything and Remembers Nothing</h1>
+    <div class="post-meta">2026-10-07 &middot; p-rick research program</div>
+    <p>Every day, your phone receives dozens of the most valuable data points of your life — and throws them away before you've finished reading them.</p>
+<p>The bank's notification that ₹1,199 just left your account. The e-receipt for this month's pharmacy refill. The airline's gate-change alert. The subscription that renewed itself in silence. Each one is structured, timestamped, machine-parseable evidence about your money, your health, your movements, your obligations. And the entire computing ecosystem's answer to this stream is a notification shade that scrolls and an inbox that buries.</p>
+<p>That's not a privacy feature. That's an amnesia feature.</p>
+<h2>The asymmetry nobody talks about</h2>
+<p>Here's the thing that should bother you more than it does. Platforms keep <em>exhaustive</em> records of you. Every ad view, every tap, every hesitation before purchase — retained, modeled, priced. Meanwhile <em>you</em> keep almost nothing of the events that actually constitute your financial life. The renewal you forgot. The price you used to pay. The refund window that closed last Tuesday.</p>
+<p>We've spent a decade arguing about who gets to keep data. Almost no one has asked the more basic question: why doesn't the <em>user</em> get to keep any?</p>
+<p>When we started PocketVeto, we thought we were building a subscription tracker. What we actually discovered, shipping it, is that we had built one working organ of a body that doesn't exist: a thing that <em>watches your payment events</em>. And once you've built one organ, you can't unsee the missing skeleton.</p>
+<h2>There's a name for the missing thing</h2>
+<p>We looked for it. Hard. (The survey is in the paper — roughly eighty structured searches, and we found nothing but noise.) The missing layer has no product, no standard, no project, and not even a stable name. So we named it: the <strong>personal event bus</strong>.</p>
+<p>The spec is five things, and the absence of any one of them is why nothing today does the job:</p>
+<ol>
+<li>It <strong>captures</strong> ambient events — notifications, e-receipts, statements — through adapters.</li>
+<li>It <strong>keeps</strong> them — an append-only, encrypted log on your device.</li>
+<li>It <strong>normalizes</strong> them — events typed by an open schema, not raw text.</li>
+<li>It <strong>serves</strong> them — local apps subscribe, with per-field permissions you can revoke.</li>
+<li>You <strong>own</strong> it — no account, no cloud, no telemetry. The network tab stays silent.</li>
+</ol>
+<p>Everything adjacent exists and stops short. Solid pods store documents but capture nothing. IFTTT routes triggers through someone else's server and forgets them. Notification loggers capture everything as raw text and normalize nothing. Home Assistant built a genuinely great local event bus — for your light bulbs, not your life. Microsoft's MyLifeBits proved a decade of durable personal capture in research — without schemas, subscriptions, or a permission model. Every player is in a corner of the design space. The center is empty.</p>
+<h2>Why the empty center is not an accident</h2>
+<p>The history here is a graveyard, and reading it correctly matters. Databox, HAT, digi.me — serious efforts, dead or pivoted. The lesson everyone took was "personal data infrastructure doesn't work." The lesson we take is narrower and more useful: <strong>substrates that ship before their consumers starve.</strong> Middleware is never procured in advance. It gets retrofitted onto a killer app that would exist anyway.</p>
+<p>That's exactly what PocketVeto is: the proof that the pattern works, vertical-slice edition. Our payment-notification capture is one bus adapter. Our ledger is one consumer. The plan isn't to launch an abstract platform and pray — it's to extract the bus from an app that already earns its keep, then let the second schema pack (e-receipts) and the second consumer turn an engine into infrastructure.</p>
+<h2>The window is closing</h2>
+<p>Here's the uncomfortable part. Apple Intelligence and Google's Gemini stack are <em>already</em> the semantic layer over your notifications — closed, ephemeral, first-party-only, non-interoperable. They summarize, they don't remember; they serve the vendor, not you; and they will never let a third-party app subscribe to your events with a permission sheet.</p>
+<p>The open window is exactly as wide as the distance between "the OS does a closed version of this" and "the OS absorbs the category." We'd rather publish the open spec while the second fact is still deniable.</p>
+<h2>What we're doing</h2>
+<p>The full specification is in our first research paper — <a href="../papers/p-001-personal-event-bus.md">The Personal Event Bus: User-Owned Middleware for Ambient Digital-Life Events</a> — including the formal event model, the permission calculus, the threat model (we wrote the hostile-parser section honestly: sandboxed, no network, auditable output, and we name the residual risks instead of pretending they're zero), and the adoption mechanics.</p>
+<p>Three commitments worth stating in public:</p>
+<ul>
+<li><strong>The bus has no product surface of its own.</strong> Permission sheet, event inspector, log, export. Everything else is a consumer. The moment we bolt a dashboard onto it, we've become another app, and the category dies with us.</li>
+<li><strong>The schemas are a commons.</strong> Schema packs should be maintained like blocklists — community artifacts, signed, versioned. Nobody trusts a personal-data runtime whose grammar is a private API.</li>
+<li><strong>We disclose our position.</strong> We built PocketVeto; the bus is designed to be extractable from it. That's a conflict of interest, it's in the paper, and you should weigh our claims accordingly.</li>
+</ul>
+<p>One regulation note, because it's the sleeper argument: GDPR's portability right (Article 20) covers data you <em>provided</em> — and the events that matter most are pushed to you by counterparties, in a doctrinal gray zone. Someday a regulator will require banks and merchants to emit machine-readable event streams to an endpoint you designate. When that day comes, there is exactly one architecture on the table that can receive them without becoming a cloud honeypot. It's this one.</p>
+<h2>The one-sentence version</h2>
+<p>Your digital life emits a stream of consequential, parseable events; today that stream dies on contact with your lock screen; we wrote the specification for the layer that would remember it — for you, under your terms, in a form your software can use.</p>
+<p>The paper is the long argument. The bus is the next decade of local-first software trying to happen. We intend to be early on purpose.</p>
+    <div class="post-footer">
+      <p>This post accompanies the research paper <a href="../pdfs/p-001.pdf">P-001 — The Personal Event Bus (PDF)</a>.
+      Working papers and source live in the <a href="https://github.com/srivtx/pocketveto/tree/main/p-rick">p-rick directory</a>.</p>
+    </div>
+  </article>
+</main>
+<footer class="site-footer">
+  <div>p-rick &middot; user-owned computing &amp; the economics of inattention &middot; <a href="https://github.com/srivtx/pocketveto">github.com/srivtx/pocketveto</a></div>
+  <div class="footer-links"><a href="../index.html">Home</a><a href="../index.html#papers">Papers</a><a href="../index.html#blogs">Blog</a></div>
+</footer>
+</body>
+</html>
