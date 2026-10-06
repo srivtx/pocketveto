@@ -4,6 +4,33 @@ All notable changes to PocketVeto are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/).
 
+## [1.4.2] — 2026-10-06
+
+### Fixed
+- **The blank screen.** v1.4.1 (and v1.4.0 before it) bundled the web
+  export into `assets/web/` while the shell loaded the virtual origin's
+  root — `WebViewAssetLoader` answered 404, and the WebView showed
+  "webpage not available". The export now ships at the assets root and
+  the shell loads `index.html` directly, matching the app's own
+  root-absolute references (`/_next/…`, `/manifest.webmanifest`,
+  `/icons/…`). Installs upgrade in place — same signing key.
+- The service worker no longer registers inside the APK: the whole site
+  is bundled in the app, and a surviving SW cache could serve stale
+  chunks from a previous version after an update.
+
+### Added
+- **Real brand logos on the cards.** Recognized merchants (Netflix,
+  Hotstar, Spotify, Prime Video, YouTube, Jio, Airtel, Swiggy, Zomato,
+  …) carry their actual marks — embedded simple-icons path data
+  (CC0), rendered locally. No network fetch, ever: the "nowhere to
+  phone home" promise holds. Brands whose wordmark would smear at
+  tile size (Disney+, Peacock, ZEE5, Gaana, cult.fit) get a clean
+  letter in the brand's color instead.
+- Cards redesigned around the marks: one 40px soft-square tile per
+  card — brand logo when known, the kind glyph when not — with a
+  tighter text hierarchy (name + status, one meta line, money on the
+  right). Scan results and the radar list share the same geometry.
+
 ## [1.4.1] — 2026-10-05
 
 ### Fixed

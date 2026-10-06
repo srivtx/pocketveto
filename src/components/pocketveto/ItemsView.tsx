@@ -18,6 +18,7 @@ import { countdownLabel } from '@/lib/pocketveto/dates';
 import { formatMoney } from '@/lib/pocketveto/risk';
 import { PlaybookPanel } from './PlaybookPanel';
 import { KindGlyph } from './KindGlyph';
+import { BrandMark } from './BrandMark';
 
 const TIER_RAIL: Record<string, string> = {
   overdue: 'border-l-cliff-400',
@@ -108,10 +109,10 @@ export function ItemsView({
                 TIER_RAIL[item.urgency] ?? TIER_RAIL.clear
               } ${item.status !== 'active' ? 'opacity-60' : ''}`}
             >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <KindGlyph kind={item.kind} className="h-4 w-4 shrink-0 text-mist-400" />
+              <div className="flex items-start gap-3.5">
+                <BrandMark name={item.name} kind={item.kind} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="text-sm font-semibold text-mist-100">{item.name}</span>
                     {item.status !== 'active' && (
                       <Badge variant="outline" className="border-ink-700 text-mist-400">
@@ -131,7 +132,7 @@ export function ItemsView({
                     )}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="shrink-0 text-right">
                   <p
                     className={`pv-num text-sm font-semibold ${
                       item.status === 'active' && item.daysLeft <= 2

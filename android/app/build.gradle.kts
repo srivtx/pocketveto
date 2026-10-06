@@ -13,8 +13,8 @@ android {
         // single WebView has no inset handling yet. Sideload-only for now.
         targetSdk = 34
         minSdk = 26
-        versionCode = 2
-        versionName = "1.4.1"
+        versionCode = 3
+        versionName = "1.4.2"
     }
 
     buildFeatures {

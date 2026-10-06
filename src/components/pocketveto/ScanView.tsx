@@ -49,7 +49,7 @@ import {
   type NativeStatusLive,
   type NativeCapture,
 } from '@/lib/pocketveto/native';
-import { KindGlyph } from './KindGlyph';
+import { BrandMark } from './BrandMark';
 
 const CADENCE_LABEL: Record<DetectedRecurring['cadence'], string> = {
   weekly: 'Weekly',
@@ -103,51 +103,60 @@ function DetectedCard({
       className="pv-rise rounded-xl border border-ink-800 bg-ink-925/50 p-4 transition-colors hover:border-ink-700"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink-800 bg-ink-950 text-mist-400">
-            <KindGlyph kind={d.kind} className="h-4.5 w-4.5" />
-          </span>
-          <div className="min-w-0">
+      <div className="flex items-start gap-3.5">
+        <BrandMark name={d.merchant} raw={d.key} kind={d.kind} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <p className="truncate font-display text-base font-semibold tracking-tight text-mist-100">
               {d.merchant}
             </p>
-            <p className="pv-num mt-0.5 text-xs text-mist-500">
-              {d.count} charge{d.count > 1 ? 's' : ''} · every ~{d.medianGapDays}d ·{' '}
-              {CADENCE_LABEL[d.cadence]}
-              {d.amountSpread > 0.02 ? ' · varies' : ''}
-            </p>
+            {d.known && (
+              <span className="rounded-full border border-signal-500/30 bg-signal-400/10 px-2 py-px text-[10px] font-medium uppercase tracking-wider text-signal-400">
+                known
+              </span>
+            )}
           </div>
+          <p className="pv-num mt-1 text-xs text-mist-500">
+            {d.count} charge{d.count > 1 ? 's' : ''} · {CADENCE_LABEL[d.cadence]}
+            {d.amountSpread > 0.02 ? ' · varies' : ''}
+          </p>
         </div>
-        <div className="text-right">
+        <div className="shrink-0 text-right">
           <p className="pv-num text-lg font-semibold text-cliff-300">
             {formatMoney(d.monthlyCost)}
             <span className="text-xs text-mist-500">/mo</span>
           </p>
           <p className="pv-num mt-0.5 text-[11px] text-mist-500">
-            {formatMoney(d.amount)} next · {d.nextDate}
+            {formatMoney(d.amount)} · {d.nextDate}
           </p>
         </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        {/* The bar earns its space only when confidence is real signal —
+            for known brands the badge already said it. */}
         <div className="flex min-w-[140px] flex-1 items-center gap-2">
-          <div className="h-1 flex-1 overflow-hidden rounded-full bg-ink-800">
-            <div
-              className="h-full rounded-full bg-signal-400 transition-all"
-              style={{ width: `${Math.round(d.confidence * 100)}%` }}
-            />
-          </div>
-          <span className={`pv-num text-[11px] ${d.known ? 'text-signal-400' : 'text-mist-500'}`}>
-            {confidenceLabel(d.confidence, d.known)}
-          </span>
+          {d.known ? (
+            d.playbookTitle ? (
+              <span className="flex items-center gap-1.5 text-[11px] text-signal-400/90">
+                <Info className="h-3 w-3" strokeWidth={1.75} aria-hidden /> Cancel playbook ready
+              </span>
+            ) : null
+          ) : (
+            <>
+              <div className="h-1 flex-1 overflow-hidden rounded-full bg-ink-800">
+                <div
+                  className="h-full rounded-full bg-signal-400 transition-all"
+                  style={{ width: `${Math.round(d.confidence * 100)}%` }}
+                />
+              </div>
+              <span className="pv-num text-[11px] text-mist-500">
+                {confidenceLabel(d.confidence, d.known)}
+              </span>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          {d.playbookTitle && (
-            <span className="hidden items-center gap-1 text-[11px] text-signal-400/90 sm:flex">
-              <Info className="h-3 w-3" strokeWidth={1.75} aria-hidden /> Cancel playbook ready
-            </span>
-          )}
           {tracked ? (
             <span className="flex items-center gap-1.5 rounded-md border border-signal-500/40 bg-signal-400/10 px-3 py-1.5 text-xs font-semibold text-signal-400">
               <Check className="h-3.5 w-3.5" aria-hidden /> Tracked
@@ -194,21 +203,17 @@ function SingleChargeCard({
       className="pv-rise rounded-xl border border-ink-800 bg-ink-925/50 p-4 transition-colors hover:border-ink-700"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink-800 bg-ink-950 text-mist-400">
-            <KindGlyph kind="subscription" className="h-4.5 w-4.5" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate font-display text-base font-semibold tracking-tight text-mist-100">
-              {c.merchant}
-            </p>
-            <p className="pv-num mt-0.5 truncate text-xs text-mist-500">
-              {c.dateAssumed ? 'just now' : c.date} · from a shared notification
-            </p>
-          </div>
+      <div className="flex items-center gap-3.5">
+        <BrandMark name={c.merchant} raw={c.key} kind="subscription" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-display text-base font-semibold tracking-tight text-mist-100">
+            {c.merchant}
+          </p>
+          <p className="pv-num mt-1 text-xs text-mist-500">
+            {c.dateAssumed ? 'just now' : c.date} · from a shared notification
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <span className="pv-num text-lg font-semibold text-cliff-300">
             {formatMoney(c.amount)}
           </span>

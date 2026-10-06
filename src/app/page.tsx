@@ -78,7 +78,11 @@ export default function Home() {
   }, [route]);
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
+    // Browsers and the installed PWA get the service worker. The Android
+    // APK does not: the whole site is bundled in the app itself, and a
+    // surviving SW cache could serve chunks from a previous version after
+    // an update — the classic blank-WebView footgun. Bundled beats cached.
+    if ('serviceWorker' in navigator && !('PocketVetoNative' in window)) {
       navigator.serviceWorker.register('/sw.js').catch(() => {
         /* offline install is an enhancement — never block the app */
       });

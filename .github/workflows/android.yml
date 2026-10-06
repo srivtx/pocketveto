@@ -30,8 +30,13 @@ jobs:
 
       - name: Bundle web export into the APK assets
         run: |
-          mkdir -p android/app/src/main/assets/web
-          rsync -a --delete out/ android/app/src/main/assets/web/
+          # ASSETS ROOT, not assets/web: the app's own references are
+          # root-absolute (/_next/…, /manifest.webmanifest, /icons/…) and
+          # MainActivity loads https://appassets.androidplatform.net/index.html.
+          # A subdirectory would 404 every one of them — the v1.4.1
+          # blank-WebView bug.
+          mkdir -p android/app/src/main/assets
+          rsync -a --delete out/ android/app/src/main/assets/
 
       - uses: actions/setup-java@v4
         with:

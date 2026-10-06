@@ -75,7 +75,14 @@ class MainActivity : Activity() {
 
         setContentView(webView)
 
-        webView.loadUrl("https://$assetDomain/#app")
+        // The export's own references are root-absolute ("/_next/…",
+        // "/manifest.webmanifest", "/icons/…"), so the AssetsPathHandler
+        // registered at "/" must serve them from the ASSETS ROOT — the
+        // build bundles out/ directly into android/app/src/main/assets/.
+        // "/" itself has no directory-index in WebViewAssetLoader: always
+        // ask for the real document (v1.4.1 asked for "/" and got the 404
+        // "webpage not available" page — the blank-screen bug).
+        webView.loadUrl("https://$assetDomain/index.html#app")
     }
 
     override fun onDestroy() {

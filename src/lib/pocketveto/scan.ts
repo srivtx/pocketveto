@@ -12,6 +12,7 @@
  */
 
 import { addDays, addMonths, addYears, todayISO } from './dates';
+import { BRANDS as BRAND_REGISTRY } from './brands';
 import { servicePlaybook } from './playbooks';
 import type { ItemKind, MoneyDateItem, Recurrence } from './types';
 import { newId } from './store';
@@ -219,46 +220,10 @@ const NOISE_TOKENS = new Set([
   'CREDITED', 'SPENT', 'INR', 'RS',
 ]);
 
-/** Known brand fragments → pretty display names (and a kind hint). */
-const BRANDS: { fragments: string[]; name: string; kind?: ItemKind }[] = [
-  { fragments: ['NETFLIX'], name: 'Netflix' },
-  { fragments: ['SPOTIFY'], name: 'Spotify' },
-  { fragments: ['ADBE', 'ADOBE'], name: 'Adobe' },
-  { fragments: ['AMZN', 'AMAZON PRIME'], name: 'Amazon Prime' },
-  { fragments: ['HULU'], name: 'Hulu' },
-  { fragments: ['DISNEY'], name: 'Disney+' },
-  { fragments: ['MAX.COM', 'HBO'], name: 'Max' },
-  { fragments: ['PARAMOUNT'], name: 'Paramount+' },
-  { fragments: ['PEACOCK'], name: 'Peacock' },
-  { fragments: ['APPLE BILL', 'APPLE.COM BILL', 'APPLE.COM'], name: 'Apple subscriptions' },
-  { fragments: ['ICLOUD'], name: 'iCloud+' },
-  { fragments: ['YOUTUBE', 'GOOGLE YOUTUBE'], name: 'YouTube Premium' },
-  { fragments: ['GOOGLE STORAGE', 'GOOGLE ONE'], name: 'Google One' },
-  { fragments: ['MSFT', 'MICROSOFT'], name: 'Microsoft 365' },
-  { fragments: ['XBOX'], name: 'Xbox Game Pass' },
-  { fragments: ['PLAYSTATION'], name: 'PlayStation Plus' },
-  { fragments: ['NINTENDO'], name: 'Nintendo Switch Online' },
-  { fragments: ['AUDIBLE'], name: 'Audible' },
-  { fragments: ['PATREON'], name: 'Patreon' },
-  { fragments: ['CANVA'], name: 'Canva' },
-  { fragments: ['NOTION'], name: 'Notion' },
-  { fragments: ['DROPBOX'], name: 'Dropbox' },
-  { fragments: ['NYTIMES', 'NEW YORK TIMES'], name: 'NYT' },
-  { fragments: ['WSJ', 'WALL STREET JOURNAL'], name: 'WSJ' },
-  { fragments: ['CRUNCH', 'PLANET FITNESS', 'EQUINOX', 'ANYTIME FITNESS'], name: 'Gym membership', kind: 'membership' },
-  { fragments: ['GO DADDY', 'GODADDY', 'NAMECHEAP', 'NAME.COM', 'DOMAIN'], name: 'Domain renewal', kind: 'domain' },
-  // India / UPI receipts
-  { fragments: ['HOTSTAR'], name: 'Disney+ Hotstar' },
-  { fragments: ['JIOCINEMA', 'JIO SAVAN', 'JIOSAAVN', 'JIO'], name: 'Jio' },
-  { fragments: ['SONYLIV', 'SONY LIV'], name: 'SonyLIV' },
-  { fragments: ['ZEE5'], name: 'ZEE5' },
-  { fragments: ['AIRTEL'], name: 'Airtel' },
-  { fragments: ['GAANA'], name: 'Gaana' },
-  { fragments: ['PRIMEVIDEO', 'AMAZON PRIME VIDEO'], name: 'Prime Video' },
-  { fragments: ['SWIGGY'], name: 'Swiggy One', kind: 'subscription' },
-  { fragments: ['ZOMATO'], name: 'Zomato Gold', kind: 'subscription' },
-  { fragments: ['CULTFIT', 'CULT FIT'], name: 'cult.fit', kind: 'membership' },
-];
+/** Known brand fragments + display names live in the brand registry
+ *  (brands.ts) — one place for the parser's catalog and the card logos.
+ *  Parse behavior is unchanged: same fragments, names, kinds, order. */
+const BRANDS = BRAND_REGISTRY.filter((b) => !b.logoOnly);
 
 function normalizeMerchant(raw: string): string {
   let s = raw.toUpperCase();
