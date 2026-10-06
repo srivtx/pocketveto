@@ -213,7 +213,7 @@ export function PocketVetoApp({
 
   if (!state.ready) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-ink-950">
+      <div className="pv-canvas flex min-h-dvh flex-col items-center justify-center gap-4 bg-ink-950">
         <Logo className="h-10 w-10 animate-pulse text-signal-400" />
         <p className="pv-label">Scanning…</p>
       </div>
@@ -223,7 +223,7 @@ export function PocketVetoApp({
   const empty = state.items.length === 0;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-ink-950 text-mist-100">
+    <div className="pv-canvas flex min-h-dvh flex-col bg-ink-950 text-mist-100">
       {/* App bar */}
       <header className="pv-chrome sticky top-0 z-30 border-b border-ink-800/70 bg-ink-950/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
@@ -687,7 +687,7 @@ export function PocketVetoApp({
         size="icon"
         aria-label="Add a money date"
         aria-hidden={fabAway}
-        className={`pv-chrome fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 h-14 w-14 rounded-full bg-signal-400 text-ink-950 shadow-xl shadow-black/40 transition-all duration-300 hover:scale-105 hover:bg-signal-300 active:scale-95 md:hidden ${
+        className={`pv-chrome fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 h-14 w-14 rounded-full bg-signal-400 text-ink-950 shadow-xl shadow-black/40 transition-all duration-300 motion-safe:hover:scale-105 hover:bg-signal-300 motion-safe:active:scale-95 md:hidden ${
           fabAway ? 'pointer-events-none translate-y-24 opacity-0' : ''
         }`}
       >

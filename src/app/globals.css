@@ -384,6 +384,27 @@
   letter-spacing: -0.01em;
 }
 
+/* ---- Canvas backdrop: a phone-only paper vignette ------------------------
+   One static radial wash painted as a background-image LAYER on the app
+   shell root (above bg-ink-950, below every child — no stacking games,
+   no overlay on text). Sized in dvh so it stays viewport-proportioned on
+   tall pages, and switched off entirely at md+ where the canvas stays
+   pure flat ink. Static by design: nothing for prefers-reduced-motion
+   to opt out of. Fallback: browsers without dvh support drop the whole
+   declaration and keep the flat field. */
+.pv-canvas {
+  background-image: radial-gradient(
+    140dvh 72dvh at 50% -18dvh,
+    oklch(1 0 0 / 0.04),
+    oklch(1 0 0 / 0) 62%
+  );
+}
+@media (min-width: 48rem) {
+  .pv-canvas {
+    background-image: none;
+  }
+}
+
 /* ---- Reduced motion: everything settles instantly ----------------------- */
 
 @media (prefers-reduced-motion: reduce) {

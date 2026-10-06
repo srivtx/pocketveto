@@ -4,6 +4,35 @@ All notable changes to PocketVeto are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/).
 
+## [1.5.1] — 2026-10-06
+
+### Added — trust the artifact, not the re-host
+- **CI now verifies the APK signature before publishing.** Between
+  `assembleRelease` and the Release upload, the workflow runs
+  `apksigner verify --verbose --print-certs` on the finished APK and
+  fails the release if the signature is wrong — the signer cert digest
+  also lands in every build log, so a tampered build can never ship
+  silently.
+- **Every release ships a `.sha256` sidecar.** Both release filenames
+  get a checksum file; `sha256sum -c PocketVeto-android.apk.sha256`
+  after downloading proves the bytes on disk are the exact bytes CI
+  verified. README, android/README and docs/autodetect.md explain it.
+
+### Changed — phone-canvas polish
+- Radar blip hit targets grew from 36px to 44px (the touch-target
+  floor native platforms recommend); the dot itself is unchanged.
+- FAB and blip scale interactions are now `motion-safe` — devices
+  running reduced-motion get no scale animation at all (keyframe
+  animations were already covered by the global reduced-motion rule).
+- The boot scene uses `min-h-dvh` (dynamic viewport height) like the
+  rest of the shell, so it can't overshoot on browser-chrome-less
+  WebViews.
+- A subtle phone-only canvas vignette (single static radial wash,
+  ~4% white, `dvh`-proportioned, off at `md+`) replaces the perfectly
+  flat ink field — enough depth to feel native, quiet enough to stay
+  canvas-clean. It's a background-image layer on the shell root, so it
+  can never sit over text.
+
 ## [1.5.0] — 2026-10-06
 
 ### Added — the Payments ledger (the split, done carefully)

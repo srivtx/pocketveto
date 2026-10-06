@@ -51,7 +51,23 @@ jobs:
         working-directory: android
         run: gradle assembleRelease --no-daemon
 
-      - name: Rename APK
+      - name: Verify APK signature and cert before publish
+        run: |
+          # Trust path: prove the artifact we are about to publish is a
+          # correctly signed APK, and pin the signer cert digest in the
+          # build log so a tampered build can never ship silently.
+          # ubuntu-latest runners ship the Android SDK at $ANDROID_HOME
+          # with build-tools preinstalled; locate apksigner defensively.
+          APKSIGNER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" \
+            -type f -name apksigner | sort -V | tail -n1)"
+          if [ -z "${APKSIGNER}" ]; then
+            echo "apksigner not found in build-tools" >&2
+            exit 1
+          fi
+          "${APKSIGNER}" verify --verbose --print-certs \
+            android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Rename APK and record checksums
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk \
              PocketVeto-${GITHUB_REF_NAME:-manual}-android.apk
@@ -59,6 +75,17 @@ jobs:
           # releases/latest/download/PocketVeto-android.apk forever.
           cp android/app/build/outputs/apk/release/app-release.apk \
              PocketVeto-android.apk
+          # Sidecar checksums so anyone can verify an install against
+          # the release they downloaded it from (sha256 for aapt-era
+          # consistency; users run: sha256sum -c PocketVeto-android.apk.sha256).
+          sha256sum PocketVeto-android.apk \
+            | awk '{print $1 "  PocketVeto-android.apk"}' \
+            > PocketVeto-android.apk.sha256
+          sha256sum "PocketVeto-${GITHUB_REF_NAME:-manual}-android.apk" \
+            | awk -v f="PocketVeto-${GITHUB_REF_NAME:-manual}-android.apk" \
+              '{print $1 "  " f}' \
+            > "PocketVeto-${GITHUB_REF_NAME:-manual}-android.apk.sha256"
+          cat PocketVeto-android.apk.sha256
 
       - name: Attach to Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -67,6 +94,8 @@ jobs:
           files: |
             PocketVeto-*-android.apk
             PocketVeto-android.apk
+            PocketVeto-android.apk.sha256
+            PocketVeto-*-android.apk.sha256
           generate_release_notes: true
           draft: false
           prerelease: false

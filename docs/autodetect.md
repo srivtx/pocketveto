@@ -112,6 +112,10 @@ be blocked outright. What that means here:
   source-auditable, signed with the committed sideload key. Every
   release re-attaches a stable filename, so
   `releases/latest/download/PocketVeto-android.apk` always resolves.
+- Since v1.5.1, CI runs `apksigner verify --print-certs` on the APK
+  before publishing and ships a `.sha256` sidecar with each release —
+  `sha256sum -c PocketVeto-android.apk.sha256` confirms the download is
+  bit-identical to what CI verified.
 - At install, choose **"Scan app"** when Play Protect asks — it is a
   genuinely good idea for any APK.
 - For updates without Play: **Obtainium** (FOSS) tracks GitHub Releases

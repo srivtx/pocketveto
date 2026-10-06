@@ -31,6 +31,17 @@ cd android && gradle assembleRelease  # needs JDK 17 + Android SDK 35
 
 Output: `android/app/build/outputs/apk/release/app-release.apk`.
 
+Before publishing, CI runs `apksigner verify --print-certs` on the
+finished APK (the signer cert digest lands in the build log) and writes
+a `.sha256` sidecar for both release filenames. After downloading:
+
+```bash
+sha256sum -c PocketVeto-android.apk.sha256
+```
+
+If that prints `OK`, the bytes on your disk are the exact bytes CI
+verified — no re-hosted or modified APK.
+
 The bundling step is a script, not a raw `rsync`, for a reason: Android's
 aapt2 silently drops asset directories starting with `_` (default ignore
 pattern `<dir>_*`), which is exactly where Next.js puts its payload

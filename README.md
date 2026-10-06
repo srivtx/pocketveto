@@ -25,7 +25,10 @@ everything stays on your device.
 - **Android app** — [download the APK](https://github.com/srivtx/pocketveto/releases/latest/download/PocketVeto-android.apk),
   flip one switch (*Notification access*): PhonePe / GPay / Paytm / bank
   payment notifications land in the Payments ledger, parsed and classified
-  on-device — autopays feed the radar, one-offs stay one-offs.
+  on-device — autopays feed the radar, one-offs stay one-offs. CI verifies
+  the signature of every APK before it is published, and each release ships
+  a `.sha256` sidecar — `sha256sum -c PocketVeto-android.apk.sha256` after
+  downloading proves you hold the exact bytes CI signed off on.
 - **Share** (installed PWA, Android) — share any payment notification straight in.
 - **Paste** — a bank/card statement; recurring charges are found by cadence,
   amount and a local catalog of known subscription brands.
