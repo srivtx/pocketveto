@@ -7,13 +7,22 @@ versions follow [SemVer](https://semver.org/).
 ## [1.4.2] — 2026-10-06
 
 ### Fixed
-- **The blank screen.** v1.4.1 (and v1.4.0 before it) bundled the web
-  export into `assets/web/` while the shell loaded the virtual origin's
-  root — `WebViewAssetLoader` answered 404, and the WebView showed
-  "webpage not available". The export now ships at the assets root and
-  the shell loads `index.html` directly, matching the app's own
-  root-absolute references (`/_next/…`, `/manifest.webmanifest`,
-  `/icons/…`). Installs upgrade in place — same signing key.
+- **The blank screen — both layers of it.**
+  - *Layer 1, the 404:* v1.4.1 (and v1.4.0 before it) bundled the web
+    export into `assets/web/` while the shell loaded the virtual origin's
+    root — `WebViewAssetLoader` answered 404, and the WebView showed
+    "webpage not available". The export now ships at the assets root and
+    the shell loads `index.html` directly, matching the app's own
+    root-absolute references.
+  - *Layer 2, the missing payload:* Android's aapt2 **silently drops any
+    asset directory starting with an underscore** (default ignore
+    pattern `<dir>_*`) — so every APK so far shipped an `index.html`
+    whose `/_next/` script tags pointed at chunks that were never
+    packaged. Even past the 404, the page would have loaded no JS. The
+    bundler (`scripts/prepare-android-assets.mjs`, shared by CI and
+    local runs) now renames `_next` → `pvpkg`, rewrites every
+    reference, and hard-fails if any underscore directory or stale
+    `_next/` reference survives.
 - The service worker no longer registers inside the APK: the whole site
   is bundled in the app, and a surviving SW cache could serve stale
   chunks from a previous version after an update.
@@ -24,12 +33,16 @@ versions follow [SemVer](https://semver.org/).
   …) carry their actual marks — embedded simple-icons path data
   (CC0), rendered locally. No network fetch, ever: the "nowhere to
   phone home" promise holds. Brands whose wordmark would smear at
-  tile size (Disney+, Peacock, ZEE5, Gaana, cult.fit) get a clean
-  letter in the brand's color instead.
+  tile size (SonyLIV, Zomato, GoDaddy, ZEE5, Gaana, cult.fit,
+  Disney+, Peacock) get a clean letter in the brand's color instead,
+  and unknown merchants get a quiet monogram — same geometry, no
+  placeholder feel.
 - Cards redesigned around the marks: one 40px soft-square tile per
-  card — brand logo when known, the kind glyph when not — with a
-  tighter text hierarchy (name + status, one meta line, money on the
-  right). Scan results and the radar list share the same geometry.
+  card — brand logo when known, monogram when not — with a tighter
+  text hierarchy (name + badge, one meta line, money on the right).
+  Known-brand scan cards drop the redundant confidence bar; the bar
+  stays where it carries real signal (unknown merchants). Scan
+  results and the radar list share the same geometry.
 
 ## [1.4.1] — 2026-10-05
 

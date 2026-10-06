@@ -25,12 +25,17 @@ tag and attached to the GitHub Release:
 ```bash
 bun install
 bun run build:static                 # NEXT_STATIC=1 → out/
-mkdir -p android/app/src/main/assets/web
-rsync -a --delete out/ android/app/src/main/assets/web/
+bun scripts/prepare-android-assets.mjs   # assets/ root, _next → pvpkg
 cd android && gradle assembleRelease  # needs JDK 17 + Android SDK 35
 ```
 
 Output: `android/app/build/outputs/apk/release/app-release.apk`.
+
+The bundling step is a script, not a raw `rsync`, for a reason: Android's
+aapt2 silently drops asset directories starting with `_` (default ignore
+pattern `<dir>_*`), which is exactly where Next.js puts its payload
+(`_next/`). The script renames it, rewrites every reference, and fails
+the build if anything underscore-prefixed survives.
 
 ## Sideload, on purpose
 

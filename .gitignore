@@ -26,3 +26,6 @@ android/.gradle/
 android/.kotlin/
 android/app/build/
 android/local.properties
+
+# the bundled web export (CI builds it via scripts/prepare-android-assets.mjs)
+android/app/src/main/assets/

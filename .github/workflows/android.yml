@@ -30,13 +30,13 @@ jobs:
 
       - name: Bundle web export into the APK assets
         run: |
-          # ASSETS ROOT, not assets/web: the app's own references are
-          # root-absolute (/_next/…, /manifest.webmanifest, /icons/…) and
-          # MainActivity loads https://appassets.androidplatform.net/index.html.
-          # A subdirectory would 404 every one of them — the v1.4.1
-          # blank-WebView bug.
-          mkdir -p android/app/src/main/assets
-          rsync -a --delete out/ android/app/src/main/assets/
+          # Bundles at the ASSETS ROOT (references are root-absolute) and
+          # renames _next → pvpkg: aapt2 silently drops asset directories
+          # starting with "_" (default ignore pattern <dir>_*), which is
+          # how v1.4.1/v1.4.2 shipped an APK whose JS chunks never made it
+          # in — the blank screen. The script also rewrites every _next/
+          # reference and hard-fails if any survive.
+          bun scripts/prepare-android-assets.mjs out android/app/src/main/assets
 
       - uses: actions/setup-java@v4
         with:
