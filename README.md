@@ -101,7 +101,7 @@ CI builds and signs it on every tag — details in [android/README.md](android/R
 ## Repository layout
 
 ```
-├── .github/workflows/   # ci.yml · android.yml · pages.yml (research site)
+├── .github/workflows/   # ci.yml · android.yml
 ├── src/                 # PocketVeto web app (Next.js static export)
 ├── android/             # bare WebView shell (Kotlin)
 ├── docs/                # detection ladder, screenshots
