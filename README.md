@@ -1,10 +1,10 @@
 <div align="center">
 
-# pocketveto / **p-rick**
+# pocketveto
 
-**p-rick is the research. PocketVeto is the product.**
+**PocketVeto is the product. p-rick is the research — now in its own repo: [srivtx/p-rick](https://github.com/srivtx/p-rick).**
 
-[![Research site](https://img.shields.io/badge/research-site-8B7E5A?style=flat-square)](https://srivtx.github.io/pocketveto/)
+[![Research site](https://img.shields.io/badge/research-site-8B7E5A?style=flat-square)](https://srivtx.github.io/p-rick/)
 [![CI](https://github.com/srivtx/pocketveto/actions/workflows/ci.yml/badge.svg)](https://github.com/srivtx/pocketveto/actions/workflows/ci.yml)
 [![APK](https://github.com/srivtx/pocketveto/actions/workflows/android.yml/badge.svg)](https://github.com/srivtx/pocketveto/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-3ddc97?style=flat-square)](LICENSE)
@@ -12,56 +12,32 @@
 
 </div>
 
-This repository is the home of **p-rick**, an independent research program on
-**user-owned computing and the economics of inattention**, and of
-**PocketVeto**, the program's first product substrate — a privacy-first,
-on-device autopay/subscription radar for Android.
+**PocketVeto** is a privacy-first, on-device autopay/subscription radar for
+Android — the program's first product substrate.
 
 Research comes first. Products follow the papers.
 
 ---
 
-## The p-rick research program
+## The p-rick research program (moved)
 
-We hunt for genuine gaps in the software landscape — categories with no
-incubents, problems with large audiences, theories nobody has written down —
-verify the gap survives adversarial review, then publish the paper that names
-the category and specifies the missing system. Each paper ships with a
-CEO-voice essay, because research nobody reads might as well not exist.
+The p-rick research program — an independent hunt for genuine
+software-landscape gaps, verified adversarially, published as working
+papers with CEO-voice essays — **now lives in its own repository:
+[srivtx/p-rick](https://github.com/srivtx/p-rick)**, with its own site:
+**<https://srivtx.github.io/p-rick/>** (dark mode + light mode).
 
-**🌐 Everything is on the research site: <https://srivtx.github.io/pocketveto/>**
-(papers as hosted PDFs, essays, program overview)
+Seven published working papers across two series — Series I
+(user-owned data: the personal event bus, consumer entitlements as dead
+capital, the n=1 cost-of-living index) and Series II (systems gaps:
+degradation contracts, provenance-native storage, the attention
+scheduler, the intermittent compute fabric) — plus essays, hosted PDFs,
+and the automatic work ledger.
 
-| # | Paper | The gap | Essay |
-|---|---|---|---|
-| **P-001** | [The Personal Event Bus](https://srivtx.github.io/pocketveto/pdfs/p-001.pdf) | The missing OS middleware: a user-owned, append-only log of ambient digital-life events with typed, permissioned subscriptions. No product, standard, or research system combines all five elements. | [Your Phone Sees Everything and Remembers Nothing](https://srivtx.github.io/pocketveto/blog/p001.html) |
-| **P-002** | [Consumer Rights as Dead Capital](https://srivtx.github.io/pocketveto/pdfs/p-002.pdf) | Tens of billions a year in consumer entitlements go unclaimed — rights issued without an execution layer. The personal entitlement engine is the missing institution. | [The Largest Pool of Unclaimed Money in the Economy Is Yours](https://srivtx.github.io/pocketveto/blog/p002.html) |
-| **P-003** | [The n=1 Cost-of-Living Index](https://srivtx.github.io/pocketveto/pdfs/p-003.pdf) | No consumer software computes personal inflation that would survive statistical review. We specify the methodology the 2025–26 "personal inflation" cohort doesn't have. | [Your Inflation Is Not the CPI](https://srivtx.github.io/pocketveto/blog/p003.html) |
-
-The three papers form one stack: **P-001** is the infrastructure layer (the
-event bus), **P-002** and **P-003** are the consumer engines on top of it
-(claim execution and measurement). All working papers are CC BY 4.0, red-teamed
-before publication, with survey protocols and conflict-of-interest disclosures
-in every appendix.
-
-### Research directory layout
-
-```
-p-rick/
-├── agents.md        # automatic work ledger — sessions, effort, lineage
-├── papers/          # working papers (markdown, canonical)
-├── blogs/           # one CEO-voice essay per paper (markdown)
-└── site/            # GitHub Pages site (this very website)
-    ├── index.html
-    ├── blog/        # rendered essays
-    ├── pdfs/        # typeset papers (Tectonic/LaTeX + Playwright covers)
-    └── assets/
-```
-
-Work is tracked automatically in [p-rick/agents.md](p-rick/agents.md) —
-sessions, durations, outputs, and lineage — so nobody has to remember how long
-anything took.
-
+Work is tracked automatically in
+[agents.md](https://github.com/srivtx/p-rick/blob/main/agents.md) —
+sessions, durations, outputs, and lineage — so nobody has to remember
+how long anything took.
 ---
 
 ## PocketVeto — the first product substrate
@@ -125,7 +101,6 @@ CI builds and signs it on every tag — details in [android/README.md](android/R
 ## Repository layout
 
 ```
-├── p-rick/              # research program (papers, essays, site, ledger)
 ├── .github/workflows/   # ci.yml · android.yml · pages.yml (research site)
 ├── src/                 # PocketVeto web app (Next.js static export)
 ├── android/             # bare WebView shell (Kotlin)
@@ -135,6 +110,6 @@ CI builds and signs it on every tag — details in [android/README.md](android/R
 
 ---
 
-[Research site](https://srivtx.github.io/pocketveto/) · [Work ledger](p-rick/agents.md) · [Detection ladder](docs/autodetect.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · MIT
+[Research site](https://srivtx.github.io/p-rick/) · [Work ledger](https://github.com/srivtx/p-rick/blob/main/agents.md) · [Detection ladder](docs/autodetect.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · MIT
 
 *Local-first by architecture, not policy — the network tab stays silent.*
